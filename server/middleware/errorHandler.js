@@ -1,0 +1,69 @@
+const multer = require('multer');
+
+const errorHandler = (err, req, res, next) => {
+  console.error("Error:", err);
+
+  // Multer errors
+  if (err instanceof multer.MulterError) {
+    if (err.code === "LIMIT_FILE_SIZE") {
+      return res.status(413).json({
+        error: "File size must be under 5MB",
+      });
+    }
+    return res.status(400).json({
+      error: "File upload error",
+      details: err.message,
+    });
+  }
+
+  // File type validation errors
+  if (err.message === "Only PDF files are allowed") {
+    return res.status(400).json({
+      error: "Only PDF files are allowed",
+    });
+  }
+
+  // PDF parsing errors
+  if (err.message.includes("Could not extract text")) {
+    return res.status(422).json({
+      error: err.message,
+    });
+  }
+
+  // AI service errors
+  if (
+    err.message.includes("GoogleGenerativeAI") ||
+    err.message.includes("Max retries exceeded") ||
+    err.message.includes("quota")
+  ) {
+    return res.status(503).json({
+      error:
+        "AI service temporarily unavailable due to quota limits. Please try again later.",
+    });
+  }
+
+  // MongoDB errors
+  if (err.name === "ValidationError") {
+    return res.status(400).json({
+      error: "Validation failed",
+      details: Object.values(err.errors).map((e) => e.message),
+    });
+  }
+
+  if (err.name === "CastError") {
+    return res.status(400).json({
+      error: "Invalid ID format",
+    });
+  }
+
+  // Default error
+  res.status(500).json({
+    error: "Internal server error",
+    message:
+      process.env.NODE_ENV === "development"
+        ? err.message
+        : "Something went wrong",
+  });
+};
+
+module.exports = errorHandler;
