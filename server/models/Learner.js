@@ -20,6 +20,14 @@ const LearnerSchema = new mongoose.Schema(
         "Please enter a valid email address",
       ],
     },
+    course: {
+      type: String,
+      required: [true, "Course is required"],
+      enum: {
+        values: ["MERN", "UXUI", "Devops"],
+        message: "Course must be either MERN, UXUI, or Devops",
+      },
+    },
     resumePublicId: {
       type: String,
       required: [true, "Resume public ID is required"],
@@ -38,12 +46,6 @@ const LearnerSchema = new mongoose.Schema(
       min: [0, "Score cannot be less than 0"],
       max: [10, "Score cannot be more than 10"],
       default: 5.0,
-    },
-    prompt: {
-      type: String,
-      required: [true, "Evaluation prompt is required"],
-      minlength: [10, "Prompt must be at least 10 characters"],
-      maxlength: [500, "Prompt cannot exceed 500 characters"],
     },
     emailSent: {
       type: Boolean,

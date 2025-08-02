@@ -6,7 +6,7 @@ const Learner = require("../models/Learner");
 class ResumeController {
   async uploadAndEvaluate(req, res, next) {
     try {
-      const { name, email, prompt } = req.body;
+      const { name, email, course } = req.body;
 
       if (!req.file) {
         return res.status(400).json({ error: "Resume file is required" });
@@ -43,18 +43,18 @@ class ResumeController {
       // Get AI evaluation
       const { feedback, score } = await aiService.evaluateResume(
         resumeText,
-        prompt
+        course
       );
 
       // Save to database
       const learner = new Learner({
         name,
         email,
+        course,
         resumePublicId: uploadResult.public_id,
         resumeUrl: uploadResult.secure_url,
         feedback,
         score,
-        prompt,
       });
 
       await learner.save();
@@ -81,7 +81,7 @@ class ResumeController {
       // Get from database directly
       const learners = await Learner.find()
         .select(
-          "_id name email feedback score resumeUrl createdAt emailSent emailSentAt"
+          "_id name email course feedback score resumeUrl createdAt emailSent emailSentAt"
         )
         .sort({ createdAt: -1 });
 
@@ -101,13 +101,7 @@ class ResumeController {
         return res.status(404).json({ error: "Evaluation not found" });
       }
 
-      // Check if email already sent
-      if (evaluation.emailSent) {
-        return res.status(400).json({
-          error: "Email already sent for this evaluation",
-          sentAt: evaluation.emailSentAt,
-        });
-      }
+      // Allow resending emails - remove this check to enable resend functionality
 
       // Send email
       const emailService = require("../services/emailService");

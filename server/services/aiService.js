@@ -41,6 +41,7 @@ class AIService {
 
   extractScore(text) {
     const patterns = [
+      /overall\s*score\s*[:=\-]?\s*(\d+(\.\d+)?)/i,
       /score\s*[:=\-]?\s*(\d+(\.\d+)?)/i,
       /(\d+(\.\d+)?)\s*\/\s*10/i,
       /(\d+(\.\d+)?)\s*out\s*of\s*10/i,
@@ -56,8 +57,228 @@ class AIService {
     return null;
   }
 
-  async evaluateResume(resumeText, prompt) {
-    const aiPrompt = `${prompt}\n\nResume:\n${resumeText}\n\nProvide detailed feedback on the resume and include a score out of 10 in the format 'Score: X.X' (e.g., 'Score: 8.5'). The feedback should be comprehensive and actionable.`;
+  getCourseEvaluationCriteria(course) {
+    const baseInstructions = `
+You are an AI resume evaluator specializing in technical roles. Your task is to evaluate resumes against specific criteria and provide constructive feedback with scoring.
+
+GENERAL RULES:
+- Examples are Reference Only: All mentioned tools, platforms, and examples serve as guidance - they are NOT mandatory requirements
+- Fresher-Friendly: Candidates without experience can skip experience sections, but must demonstrate strong project portfolios
+- Scoring Scale: Use 1-10 scale for each section (1=Poor, 5=Average, 8=Good, 10=Excellent)
+- Constructive Feedback: Always provide specific, actionable improvement suggestions
+
+EVALUATION OUTPUT FORMAT:
+Provide your evaluation in this exact format:
+
+Overall Score: X/10
+Role Alignment: [How well the resume matches the target role]
+
+Section-by-Section Scores:
+- Header: X/10
+- Summary: X/10
+- Skills: X/15
+- Projects: X/20
+- Experience: X/10 (if applicable)
+- Education: X/5
+
+Strengths: [2-3 specific positive points]
+Areas for Improvement: [3-5 actionable suggestions]
+Missing Elements: [Critical components not present]
+Recommendations: [Specific next steps for improvement]
+
+WHAT TO LOOK FOR:
+- Clarity and Organization: Information is easy to find and read
+- Relevance: Content matches the target role
+- Specificity: Concrete examples rather than generic statements
+- Professional Presentation: Consistent formatting and professional language
+- Technical Depth: Appropriate level of technical detail for the role
+- Links and Contact: All provided links should be properly formatted
+- Education Section: Must be present with basic degree and institution information
+
+WHAT TO FLAG:
+- Generic Content: Copy-paste summaries or skills lists
+- Missing Critical Sections: No projects for freshers, no contact info, no education section
+- Irrelevant Information: Skills or experience unrelated to the target role
+- Poor Formatting: Inconsistent style, hard to read layout
+- Broken or Missing Links: Non-functional portfolio or GitHub links
+- Overly Long Descriptions: Verbose project or experience descriptions
+`;
+
+    switch (course) {
+      case "UXUI":
+        return `${baseInstructions}
+
+🔷 UI/UX DESIGNER EVALUATION CRITERIA:
+
+Required Sections & Scoring Criteria:
+
+Header Section (Weight: 15%)
+- Name and role clearly stated ("UI/UX Designer" or similar)
+- Complete contact information (email, phone)
+- Professional links (LinkedIn, portfolio) present and properly formatted
+- All links should be clickable/valid format
+
+Summary/Objective (Weight: 10%)
+- Minimum 2 lines of personalized content
+- Clear career direction or design philosophy
+- Specific to UI/UX field
+
+Skills Section (Weight: 20%)
+- UX Skills: User research, wireframing, prototyping, user journey mapping, usability testing
+- Design Tools: Figma, Adobe XD, Sketch, Canva, Adobe Creative Suite, InVision
+- Soft Skills: Creativity, collaboration, communication, empathy, critical thinking
+- Skills should be relevant and appropriately categorized
+
+Projects Section (Weight: 35%)
+- Maximum 3 strong projects (quality over quantity)
+- Each project should include:
+  * Clear description of design goals and user problems solved
+  * Tools and methodologies used
+  * Design process or strategy mentioned
+  * Measurable outcomes or impact (when possible)
+  * Clickable links to case studies, prototypes, or mockups
+
+Education (Weight: 10%)
+- Education section must be present
+- Basic degree and institution information is sufficient
+
+Certifications (Weight: 5%)
+- Course name, platform (Coursera, Udemy, Google, etc.), completion year
+- Relevant to design field
+
+Portfolio (Weight: 5%)
+- Must include clickable portfolio link
+- Personal website preferred over generic platforms
+- Behance or Dribbble profiles are additional advantages`;
+
+      case "MERN":
+        return `${baseInstructions}
+
+🔷 MERN STACK DEVELOPER EVALUATION CRITERIA:
+
+Required Sections & Scoring Criteria:
+
+Header Section (Weight: 15%)
+- Name and role ("Full Stack Developer", "MERN Developer", etc.)
+- Complete contact information
+- LinkedIn and GitHub links present and properly formatted
+- All links should be clickable/valid
+
+Summary/Objective (Weight: 10%)
+- 2-3 lines maximum, focused and specific
+- Highlights interest in web/application development
+- Mentions MERN stack or full-stack development
+
+Skills Section (Weight: 20%)
+- Core MERN Stack: MongoDB, Express.js, React.js, Node.js
+- Additional Technical Skills: Git, REST APIs, JWT, Postman, HTML/CSS, JavaScript ES6+
+- Soft Skills: Problem-solving, debugging, collaboration, continuous learning
+- Skills should be organized by category (Frontend, Backend, Database, Tools)
+
+Projects Section (Weight: 35%)
+- Maximum 3 strong projects
+- Each project requires:
+  * 2-3 line clear description
+  * Technologies and tools used explicitly mentioned
+  * Developer's specific role and contributions
+  * GitHub repository links (must be clickable)
+  * Live demo links when available
+  * Focus on functionality and technical implementation
+
+Experience Section (Weight: 10%)
+- Use bullet points for readability
+- Describe specific roles and technical contributions
+- Mention technologies used in each role
+- Quantify achievements when possible
+- Example format: "Built user authentication system using JWT and bcrypt"
+
+Education (Weight: 5%)
+  - Education section must be present
+  - Basic degree and institution information is sufficient
+
+Certifications (Weight: 3%)
+- Course name, platform, completion year
+- Focus on relevant programming/web development certifications
+
+GitHub Profile (Weight: 2%)
+- Clickable GitHub link
+- Profile should show active contributions and repositories
+- README files and project documentation are advantages`;
+
+      case "Devops":
+        return `${baseInstructions}
+
+🔷 DEVOPS ENGINEER EVALUATION CRITERIA:
+
+Required Sections & Scoring Criteria:
+
+Header Section (Weight: 15%)
+- Name and role clearly stated
+- Complete contact information
+- LinkedIn and GitHub links properly formatted
+- All links must be clickable
+
+Summary/Objective (Weight: 10%)
+- Brief, role-specific summary
+- Focus on automation, cloud technologies, or deployment
+- Shows understanding of DevOps principles
+
+Skills Section (Weight: 25%)
+- Core DevOps Tools: Git, CI/CD (Jenkins, GitHub Actions, GitLab CI), Docker, Kubernetes
+- Operating Systems: Linux, Windows Server
+- Scripting: Bash, Python, PowerShell
+- Cloud Platforms: AWS, Azure, GCP (beginner level acceptable)
+- Monitoring: Prometheus, Grafana, ELK Stack
+- Infrastructure as Code: Terraform, Ansible, CloudFormation
+- Soft Skills: Analytical thinking, troubleshooting, documentation, automation mindset
+
+Projects Section (Weight: 30%)
+- Maximum 3 projects demonstrating DevOps practices
+- Each project should describe:
+  * DevOps implementation (CI/CD pipeline, containerization, deployment)
+  * Tools and technologies used
+  * Infrastructure setup or automation achieved
+  * 2-3 line concise description
+  * GitHub links or deployment URLs when public
+
+Experience Section (Weight: 10%)
+- Bullet point format
+- Specific tools and platforms used
+- Quantifiable contributions and outcomes
+- Focus on automation, deployment, and infrastructure work
+
+Education (Weight: 5%)
+- Education section must be present
+- Basic degree and institution information is sufficient
+
+Certifications (Weight: 5%)
+- Relevant certifications (AWS, Azure, Docker, Kubernetes)
+- Platform name (AWS Academy, Coursera, Udemy, official vendor)
+- Completion year only`;
+
+      default:
+        return `${baseInstructions}
+
+Evaluate this resume comprehensively for technical competency and presentation quality using the general guidelines above.`;
+    }
+  }
+
+  async evaluateResume(resumeText, course) {
+    const evaluationCriteria = this.getCourseEvaluationCriteria(course);
+    const aiPrompt = `${evaluationCriteria}
+
+RESUME TO EVALUATE:
+${resumeText}
+
+Please evaluate this resume following the exact format specified above. Make sure to include:
+1. Overall Score out of 10
+2. Section-by-section scores
+3. Strengths (2-3 points)
+4. Areas for improvement (3-5 actionable suggestions)
+5. Missing elements
+6. Specific recommendations
+
+Focus on helping the candidate improve their resume for better job market success while maintaining realistic expectations for their experience level.`;
 
     const feedback = await this.makeRequestWithRetry(aiPrompt);
     const score = this.extractScore(feedback);

@@ -14,10 +14,10 @@ const validateResumeSubmission = [
     .withMessage("Please enter a valid email address")
     .normalizeEmail(),
 
-  body("prompt")
+  body("course")
     .trim()
-    .isLength({ min: 10, max: 500 })
-    .withMessage("Prompt must be between 10 and 500 characters"),
+    .isIn(["MERN", "UXUI", "Devops"])
+    .withMessage("Course must be either MERN, UXUI, or Devops"),
 ];
 
 const validateEmailRequest = [
