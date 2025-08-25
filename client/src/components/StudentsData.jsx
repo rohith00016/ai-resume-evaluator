@@ -12,6 +12,7 @@ import {
   RefreshCw,
   Eye,
   X,
+  Globe,
 } from "lucide-react";
 import NavBar from "./NavBar";
 
@@ -129,7 +130,10 @@ const StudentsData = () => {
                       Course
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Score
+                      Portfolio
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Scores
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       View Evaluation
@@ -179,13 +183,50 @@ const StudentsData = () => {
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div
-                          className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getScoreColor(
-                            evaluation.score
-                          )}`}
-                        >
-                          <Star className="w-4 h-4 mr-1" />
-                          {evaluation.score}/10
+                        {evaluation.portfolioUrl ? (
+                          <a
+                            href={evaluation.portfolioUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center text-blue-600 hover:text-blue-800 text-sm"
+                          >
+                            <Globe className="w-4 h-4 mr-1" />
+                            View Portfolio
+                          </a>
+                        ) : (
+                          <span className="text-gray-400 text-sm">
+                            Not provided
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="space-y-1">
+                          {evaluation.resumeScore && (
+                            <div
+                              className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getScoreColor(
+                                evaluation.resumeScore
+                              )}`}
+                            >
+                              <Star className="w-3 h-3 mr-1" />
+                              Resume: {evaluation.resumeScore}/10
+                            </div>
+                          )}
+                          {evaluation.portfolioScore && (
+                            <div
+                              className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getScoreColor(
+                                evaluation.portfolioScore
+                              )}`}
+                            >
+                              <Globe className="w-3 h-3 mr-1" />
+                              Portfolio: {evaluation.portfolioScore}/10
+                            </div>
+                          )}
+                          {!evaluation.resumeScore &&
+                            !evaluation.portfolioScore && (
+                              <span className="text-gray-400 text-xs">
+                                No scores
+                              </span>
+                            )}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
@@ -198,15 +239,21 @@ const StudentsData = () => {
                         </button>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <a
-                          href={evaluation.resumeUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center text-blue-600 hover:text-blue-800 text-sm"
-                        >
-                          <ExternalLink className="w-4 h-4 mr-1" />
-                          View PDF
-                        </a>
+                        {evaluation.resumeUrl ? (
+                          <a
+                            href={evaluation.resumeUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center text-blue-600 hover:text-blue-800 text-sm"
+                          >
+                            <ExternalLink className="w-4 h-4 mr-1" />
+                            View PDF
+                          </a>
+                        ) : (
+                          <span className="text-gray-400 text-sm">
+                            Not provided
+                          </span>
+                        )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         {evaluation.emailSent ? (
@@ -308,47 +355,101 @@ const StudentsData = () => {
                           {formatDate(selectedEvaluation.createdAt)}
                         </span>
                       </div>
+                      {selectedEvaluation.portfolioUrl && (
+                        <div className="col-span-2">
+                          <span className="text-gray-600">Portfolio:</span>
+                          <a
+                            href={selectedEvaluation.portfolioUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="ml-2 text-blue-600 hover:text-blue-800 break-all"
+                          >
+                            <Globe className="w-3 h-3 inline mr-1" />
+                            {selectedEvaluation.portfolioUrl}
+                          </a>
+                        </div>
+                      )}
                     </div>
                   </div>
 
-                  {/* Score */}
+                  {/* Scores */}
                   <div className="bg-gray-50 rounded-lg p-4">
-                    <h4 className="font-medium text-gray-900 mb-2">Score</h4>
-                    <div
-                      className={`inline-flex items-center px-4 py-2 rounded-full text-lg font-bold ${getScoreColor(
-                        selectedEvaluation.score
-                      )}`}
-                    >
-                      <Star className="w-5 h-5 mr-2" />
-                      {selectedEvaluation.score}/10
+                    <h4 className="font-medium text-gray-900 mb-3">Scores</h4>
+                    <div className="space-y-3">
+                      {selectedEvaluation.resumeScore && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-gray-600">Resume Score:</span>
+                          <div
+                            className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getScoreColor(
+                              selectedEvaluation.resumeScore
+                            )}`}
+                          >
+                            <Star className="w-4 h-4 mr-1" />
+                            {selectedEvaluation.resumeScore}/10
+                          </div>
+                        </div>
+                      )}
+                      {selectedEvaluation.portfolioScore && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-gray-600">
+                            Portfolio Score:
+                          </span>
+                          <div
+                            className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getScoreColor(
+                              selectedEvaluation.portfolioScore
+                            )}`}
+                          >
+                            <Globe className="w-4 h-4 mr-1" />
+                            {selectedEvaluation.portfolioScore}/10
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
 
-                  {/* Feedback */}
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <h4 className="font-medium text-gray-900 mb-3">
-                      Detailed Feedback
-                    </h4>
-                    <div className="bg-white rounded-md p-4 border">
-                      <p className="text-gray-700 whitespace-pre-wrap leading-relaxed">
-                        {selectedEvaluation.feedback}
-                      </p>
+                  {/* Resume Feedback */}
+                  {selectedEvaluation.resumeFeedback && (
+                    <div className="bg-gray-50 rounded-lg p-4">
+                      <h4 className="font-medium text-gray-900 mb-3">
+                        Resume Feedback
+                      </h4>
+                      <div className="bg-white rounded-md p-4 border">
+                        <p className="text-gray-700 whitespace-pre-wrap leading-relaxed">
+                          {selectedEvaluation.resumeFeedback}
+                        </p>
+                      </div>
                     </div>
-                  </div>
+                  )}
+
+                  {/* Portfolio Feedback */}
+                  {selectedEvaluation.portfolioFeedback && (
+                    <div className="bg-gray-50 rounded-lg p-4">
+                      <h4 className="font-medium text-gray-900 mb-3">
+                        Portfolio Feedback
+                      </h4>
+                      <div className="bg-white rounded-md p-4 border">
+                        <p className="text-gray-700 whitespace-pre-wrap leading-relaxed">
+                          {selectedEvaluation.portfolioFeedback}
+                        </p>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Resume Link */}
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <h4 className="font-medium text-gray-900 mb-2">Resume</h4>
-                    <a
-                      href={selectedEvaluation.resumeUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center px-4 py-2 border border-transparent rounded-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 transition-colors"
-                    >
-                      <ExternalLink className="w-4 h-4 mr-2" />
-                      View Resume PDF
-                    </a>
-                  </div>
+                  {selectedEvaluation.resumeUrl && (
+                    <div className="bg-gray-50 rounded-lg p-4">
+                      <h4 className="font-medium text-gray-900 mb-2">Resume</h4>
+                      <a
+                        href={selectedEvaluation.resumeUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center px-4 py-2 border border-transparent rounded-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 transition-colors"
+                      >
+                        <ExternalLink className="w-4 h-4 mr-2" />
+                        View Resume PDF
+                      </a>
+                    </div>
+                  )}
                 </div>
 
                 {/* Modal Footer */}

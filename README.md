@@ -5,6 +5,8 @@ A comprehensive web-based platform that empowers job seekers to enhance their re
 ## 🚀 Features
 
 - **AI-Powered Resume Evaluation**: Automated analysis with actionable improvement suggestions
+- **Portfolio Evaluation**: Web scraping and analysis of deployed portfolio websites
+- **MERN Stack Detection**: Automatic identification of MongoDB, Express, React, Node.js technologies
 - **Comprehensive Scoring System**: Objective scoring out of 10 with detailed explanations
 - **Secure Cloud Storage**: Professional PDF management through Cloudinary integration
 - **Email Delivery System**: Direct feedback delivery to users' email addresses
@@ -14,14 +16,17 @@ A comprehensive web-based platform that empowers job seekers to enhance their re
 ## 🛠️ Technology Stack
 
 ### Backend
+
 - **Runtime**: Node.js with Express.js
 - **Database**: MongoDB with Mongoose
 - **File Storage**: Cloudinary
 - **AI Service**: Google Generative AI (Gemini)
+- **Web Scraping**: Puppeteer for portfolio analysis
 - **Email**: Nodemailer with Gmail
 - **Validation**: express-validator
 
 ### Frontend
+
 - **Framework**: React 18
 - **State Management**: Redux Toolkit
 - **Styling**: Tailwind CSS
@@ -40,6 +45,7 @@ A comprehensive web-based platform that empowers job seekers to enhance their re
 ## 🚀 Quick Start
 
 ### 1. Clone the Repository
+
 ```bash
 git clone <repository-url>
 cd ai-resume-evaluator
@@ -48,12 +54,14 @@ cd ai-resume-evaluator
 ### 2. Install Dependencies
 
 **Backend:**
+
 ```bash
 cd server
 npm install
 ```
 
 **Frontend:**
+
 ```bash
 cd client
 npm install
@@ -63,6 +71,7 @@ npm install
 
 **Backend Environment:**
 Create a `.env` file in the `server` directory:
+
 ```env
 MONGO_URI=mongodb://localhost:27017/resume-evaluator
 GEMINI_API_KEY=your_google_ai_api_key_here
@@ -80,18 +89,21 @@ See `server/README_ENV.md` for detailed environment variable documentation.
 ### 4. Start the Application
 
 **Backend:**
+
 ```bash
 cd server
 npm run dev
 ```
 
 **Frontend:**
+
 ```bash
 cd client
 npm run dev
 ```
 
 The application will be available at:
+
 - Frontend: http://localhost:5173
 - Backend API: http://localhost:5000
 - Health Check: http://localhost:5000/health
@@ -122,18 +134,30 @@ ai-resume-evaluator/
 ## 🔧 API Endpoints
 
 ### Health Check
+
 - `GET /health` - Check server status
 
 ### Resume Management
-- `POST /api/resume` - Upload and evaluate resume
+
+- `POST /api/resume` - Upload and evaluate resume (with optional portfolio URL)
 - `GET /api/learners` - Get all evaluations
 - `POST /api/send-feedback` - Send feedback email
+
+### Portfolio Evaluation
+
+The application now supports portfolio evaluation for enhanced resume analysis:
+
+- **Web Scraping**: Automatically analyzes deployed portfolio websites
+- **MERN Stack Detection**: Identifies MongoDB, Express, React, Node.js technologies
+- **Comprehensive Scoring**: Evaluates navigation, skills, projects, social links, and technical features
+- **Enhanced AI Feedback**: Combines resume and portfolio analysis for better insights
 
 See `API_ROUTES.md` for detailed API documentation.
 
 ## 🎨 Frontend Features
 
 ### Resume Submission Form
+
 - Real-time form validation
 - File upload with drag-and-drop
 - Progress indicators
@@ -141,6 +165,7 @@ See `API_ROUTES.md` for detailed API documentation.
 - Responsive design
 
 ### Evaluation Dashboard
+
 - List all evaluations
 - Score visualization
 - Email status tracking
@@ -150,7 +175,7 @@ See `API_ROUTES.md` for detailed API documentation.
 ## 🔒 Security Features
 
 - File type validation (PDF only)
-- File size limits (5MB max)
+- File size limits (10MB max)
 - Input sanitization
 - CORS configuration
 - Environment variable protection
@@ -166,12 +191,14 @@ See `API_ROUTES.md` for detailed API documentation.
 ## 🧪 Testing
 
 ### Backend Testing
+
 ```bash
 cd server
 npm test
 ```
 
 ### Frontend Testing
+
 ```bash
 cd client
 npm test
@@ -180,11 +207,13 @@ npm test
 ## 🚀 Deployment
 
 ### Backend Deployment
+
 1. Set up MongoDB Atlas
 2. Set environment variables
 3. Deploy to your preferred platform (Heroku, AWS, etc.)
 
 ### Frontend Deployment
+
 1. Build the application: `npm run build`
 2. Deploy to static hosting (Netlify, Vercel, etc.)
 
@@ -210,11 +239,19 @@ This project is licensed under the MIT License.
 ## 🆘 Support
 
 For support and questions:
+
 - Check the API documentation in `API_ROUTES.md`
 - Review environment setup in `server/README_ENV.md`
 - Open an issue on GitHub
 
 ## 🔄 Version History
+
+- **v1.1.0** - Portfolio Evaluation Integration
+
+  - Web scraping and portfolio analysis
+  - MERN stack technology detection
+  - Enhanced AI feedback with portfolio insights
+  - Updated UI to support portfolio URLs
 
 - **v1.0.0** - Initial release with core functionality
   - Resume upload and AI evaluation

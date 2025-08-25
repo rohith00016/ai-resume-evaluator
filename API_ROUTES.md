@@ -33,8 +33,9 @@ All endpoints are currently public (no authentication required).
 - **Request Body**:
   - `name` (string, required): User's full name (2-40 characters, alphabetic only)
   - `email` (string, required): Valid email address
-  - `prompt` (string, required): Evaluation criteria (10-500 characters)
-  - `resume` (file, required): PDF file (max 5MB)
+  - `course` (string, required): Course type ("MERN", "UXUI", or "Devops")
+  - `portfolioUrl` (string, optional): Deployed portfolio URL for enhanced evaluation
+  - `resume` (file, required): PDF file (max 10MB)
 - **Success Response** (201):
   ```json
   {
@@ -43,6 +44,8 @@ All endpoints are currently public (no authentication required).
       "_id": "507f1f77bcf86cd799439011",
       "name": "John Doe",
       "email": "john@example.com",
+      "course": "MERN",
+      "portfolioUrl": "https://john-portfolio.com",
       "feedback": "Detailed AI feedback...",
       "score": 8.5,
       "resumeUrl": "https://res.cloudinary.com/...",
@@ -52,7 +55,7 @@ All endpoints are currently public (no authentication required).
   ```
 - **Error Responses**:
   - `400`: Validation errors
-  - `413`: File too large (>5MB)
+  - `413`: File too large (>10MB)
   - `422`: Could not extract text from PDF
   - `503`: AI service unavailable
 
@@ -68,6 +71,8 @@ All endpoints are currently public (no authentication required).
       "_id": "507f1f77bcf86cd799439011",
       "name": "John Doe",
       "email": "john@example.com",
+      "course": "MERN",
+      "portfolioUrl": "https://john-portfolio.com",
       "feedback": "Detailed feedback...",
       "score": 8.5,
       "resumeUrl": "https://res.cloudinary.com/...",
@@ -109,8 +114,15 @@ All endpoints are currently public (no authentication required).
 ## File Upload Requirements
 
 - **Format**: PDF only
-- **Size**: Maximum 5MB
+- **Size**: Maximum 10MB
 - **Content**: Must contain extractable text (not scanned images)
+
+## Portfolio Evaluation Features
+
+- **Web Scraping**: Uses Puppeteer to analyze deployed portfolio websites
+- **MERN Stack Detection**: Automatically identifies MongoDB, Express, React, Node.js technologies
+- **Portfolio Scoring**: Evaluates navigation, skills, projects, social links, and technical features
+- **Enhanced AI Feedback**: Combines resume and portfolio analysis for comprehensive evaluation
 
 ## Rate Limits
 

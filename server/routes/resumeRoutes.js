@@ -14,7 +14,7 @@ router.post(
   upload.single("resume"),
   validateResumeSubmission,
   handleValidationErrors,
-  resumeController.uploadAndEvaluate
+  resumeController.uploadAndEvaluateSubmission
 );
 
 // GET /api/learners - Get all evaluations

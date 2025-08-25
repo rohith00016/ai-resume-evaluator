@@ -4,70 +4,103 @@ const aiService = require("../services/aiService");
 const Learner = require("../models/Learner");
 
 class ResumeController {
-  async uploadAndEvaluate(req, res, next) {
+  async uploadAndEvaluateSubmission(req, res, next) {
     try {
-      const { name, email, course } = req.body;
+      const { name, email, course, portfolioUrl } = req.body;
 
-      if (!req.file) {
-        return res.status(400).json({ error: "Resume file is required" });
+      if (!email || !course) {
+        return res.status(400).json({ error: "Email and course are required" });
       }
 
-      // Parse PDF content
-      const resumeData = await pdfParse(req.file.buffer);
-      const resumeText = resumeData.text;
+      let resumeResult = null;
+      let portfolioResult = null;
+      let uploadResult = null;
 
-      if (!resumeText || resumeText.trim().length === 0) {
-        throw new Error(
-          "Could not extract text from PDF. Please ensure the PDF contains readable text."
+      // Resume Evaluation if file present
+      if (req.file) {
+        const resumeData = await pdfParse(req.file.buffer);
+        const resumeText = resumeData.text;
+
+        if (!resumeText || resumeText.trim().length === 0) {
+          throw new Error("Could not extract text from PDF.");
+        }
+
+        uploadResult = await new Promise((resolve, reject) => {
+          const uploadStream = cloudinary.uploader.upload_stream(
+            {
+              resource_type: "raw",
+              format: "pdf",
+              folder: "resumes",
+              public_id: `${Date.now()}-${name.replace(/\s+/g, "-")}`,
+            },
+            (error, result) => {
+              if (error) reject(error);
+              else resolve(result);
+            }
+          );
+          uploadStream.end(req.file.buffer);
+        });
+
+        const { feedback, score } = await aiService.evaluateResume(
+          resumeText,
+          course
         );
+        resumeResult = { feedback, score };
       }
 
-      // Upload to Cloudinary
-      const uploadResult = await new Promise((resolve, reject) => {
-        const uploadStream = cloudinary.uploader.upload_stream(
-          {
-            resource_type: "raw",
-            format: "pdf",
-            folder: "resumes",
-            public_id: `${Date.now()}-${name.replace(/\s+/g, "-")}`,
-          },
-          (error, result) => {
-            if (error) reject(error);
-            else resolve(result);
-          }
+      // Portfolio Evaluation if URL present
+      if (portfolioUrl && portfolioUrl.startsWith("http")) {
+        const { feedback, score } = await aiService.evaluatePortfolio(
+          portfolioUrl,
+          course
         );
+        portfolioResult = { feedback, score };
+      }
 
-        uploadStream.end(req.file.buffer);
-      });
+      // If nothing to evaluate
+      if (!resumeResult && !portfolioResult) {
+        return res
+          .status(400)
+          .json({ error: "Provide a resume file or valid portfolio URL" });
+      }
 
-      // Get AI evaluation
-      const { feedback, score } = await aiService.evaluateResume(
-        resumeText,
-        course
+      // Save or update learner
+      const learner = await Learner.findOneAndUpdate(
+        { email, course },
+        {
+          $setOnInsert: { name },
+          ...(resumeResult && {
+            resumeUrl: uploadResult.secure_url,
+            resumePublicId: uploadResult.public_id,
+            resumeFeedback: resumeResult.feedback,
+            resumeScore: resumeResult.score,
+          }),
+          ...(portfolioResult && {
+            portfolioUrl,
+            portfolioFeedback: portfolioResult.feedback,
+            portfolioScore: portfolioResult.score,
+          }),
+        },
+        { upsert: true, new: true }
       );
 
-      // Save to database
-      const learner = new Learner({
-        name,
-        email,
-        course,
-        resumePublicId: uploadResult.public_id,
-        resumeUrl: uploadResult.secure_url,
-        feedback,
-        score,
-      });
-
-      await learner.save();
-
       res.status(201).json({
-        message: "Resume evaluated successfully",
+        message: "Evaluation completed",
         learner: {
           _id: learner._id,
-          name: learner.name,
-          email: learner.email,
-          feedback: learner.feedback,
-          score: learner.score,
-          resumeUrl: learner.resumeUrl,
+          name,
+          email,
+          course,
+          ...(resumeResult && {
+            resumeFeedback: resumeResult.feedback,
+            resumeScore: resumeResult.score,
+            resumeUrl: uploadResult.secure_url,
+          }),
+          ...(portfolioResult && {
+            portfolioFeedback: portfolioResult.feedback,
+            portfolioScore: portfolioResult.score,
+            portfolioUrl: portfolioUrl,
+          }),
           createdAt: learner.createdAt,
         },
       });
@@ -81,7 +114,7 @@ class ResumeController {
       // Get from database directly
       const learners = await Learner.find()
         .select(
-          "_id name email course feedback score resumeUrl createdAt emailSent emailSentAt"
+          "_id name email course portfolioUrl portfolioFeedback portfolioScore resumeFeedback resumeScore resumeUrl createdAt emailSent emailSentAt"
         )
         .sort({ createdAt: -1 });
 

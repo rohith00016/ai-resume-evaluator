@@ -227,23 +227,58 @@ const LearnerForm = () => {
                 Evaluation Complete!
               </h3>
               <div className="bg-gray-50 rounded-lg p-6 mb-6">
-                <div className="flex items-center justify-center mb-4">
-                  <span className="text-2xl font-bold mr-2">Score:</span>
-                  <span
-                    className={`text-3xl font-bold ${getScoreColor(
-                      currentEvaluation.score
-                    )}`}
-                  >
-                    {currentEvaluation.score}/10
-                  </span>
+                <div className="space-y-4 mb-4">
+                  {currentEvaluation.resumeScore && (
+                    <div className="flex items-center justify-center">
+                      <span className="text-xl font-bold mr-2">
+                        Resume Score:
+                      </span>
+                      <span
+                        className={`text-2xl font-bold ${getScoreColor(
+                          currentEvaluation.resumeScore
+                        )}`}
+                      >
+                        {currentEvaluation.resumeScore}/10
+                      </span>
+                    </div>
+                  )}
+                  {currentEvaluation.portfolioScore && (
+                    <div className="flex items-center justify-center">
+                      <span className="text-xl font-bold mr-2">
+                        Portfolio Score:
+                      </span>
+                      <span
+                        className={`text-2xl font-bold ${getScoreColor(
+                          currentEvaluation.portfolioScore
+                        )}`}
+                      >
+                        {currentEvaluation.portfolioScore}/10
+                      </span>
+                    </div>
+                  )}
                 </div>
-                <div className="text-left">
-                  <h4 className="font-semibold text-gray-900 mb-2">
-                    Feedback:
-                  </h4>
-                  <p className="text-gray-700 whitespace-pre-wrap">
-                    {currentEvaluation.feedback}
-                  </p>
+                <div className="space-y-4">
+                  {currentEvaluation.resumeFeedback && (
+                    <div className="text-left">
+                      <h4 className="font-semibold text-gray-900 mb-2">
+                        Resume Feedback:
+                      </h4>
+                      <p className="text-gray-700 whitespace-pre-wrap text-sm">
+                        {currentEvaluation.resumeFeedback}
+                      </p>
+                    </div>
+                  )}
+
+                  {currentEvaluation.portfolioFeedback && (
+                    <div className="text-left">
+                      <h4 className="font-semibold text-gray-900 mb-2">
+                        Portfolio Feedback:
+                      </h4>
+                      <p className="text-gray-700 whitespace-pre-wrap text-sm">
+                        {currentEvaluation.portfolioFeedback}
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
               <div className="flex gap-4 justify-center">
@@ -253,14 +288,16 @@ const LearnerForm = () => {
                 >
                   Submit Another Resume
                 </button>
-                <a
-                  href={currentEvaluation.resumeUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="bg-gray-600 text-white px-6 py-2 rounded-lg hover:bg-gray-700 transition-colors"
-                >
-                  View Resume
-                </a>
+                {currentEvaluation.resumeUrl && (
+                  <a
+                    href={currentEvaluation.resumeUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="bg-gray-600 text-white px-6 py-2 rounded-lg hover:bg-gray-700 transition-colors"
+                  >
+                    View Resume
+                  </a>
+                )}
               </div>
             </div>
           ) : (

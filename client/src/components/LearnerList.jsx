@@ -102,13 +102,27 @@ const LearnerList = () => {
                     </div>
 
                     <div className="flex items-center space-x-4 mb-4">
-                      <div
-                        className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getScoreColor(
-                          evaluation.score
-                        )}`}
-                      >
-                        <Star className="w-4 h-4 mr-1" />
-                        Score: {evaluation.score}/10
+                      <div className="flex items-center space-x-2">
+                        {evaluation.resumeScore && (
+                          <div
+                            className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getScoreColor(
+                              evaluation.resumeScore
+                            )}`}
+                          >
+                            <Star className="w-4 h-4 mr-1" />
+                            Resume: {evaluation.resumeScore}/10
+                          </div>
+                        )}
+                        {evaluation.portfolioScore && (
+                          <div
+                            className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getScoreColor(
+                              evaluation.portfolioScore
+                            )}`}
+                          >
+                            <Star className="w-4 h-4 mr-1" />
+                            Portfolio: {evaluation.portfolioScore}/10
+                          </div>
+                        )}
                       </div>
                       <div className="flex items-center text-sm text-gray-500">
                         <Calendar className="w-4 h-4 mr-1" />
@@ -122,25 +136,54 @@ const LearnerList = () => {
                       )}
                     </div>
 
-                    <div className="bg-gray-50 rounded-lg p-4 mb-4">
-                      <h4 className="font-medium text-gray-900 mb-2">
-                        Feedback:
-                      </h4>
-                      <p className="text-gray-700 text-sm whitespace-pre-wrap line-clamp-3">
-                        {evaluation.feedback}
-                      </p>
+                    <div className="space-y-3 mb-4">
+                      {evaluation.resumeFeedback && (
+                        <div className="bg-gray-50 rounded-lg p-4">
+                          <h4 className="font-medium text-gray-900 mb-2">
+                            Resume Feedback:
+                          </h4>
+                          <p className="text-gray-700 text-sm whitespace-pre-wrap line-clamp-3">
+                            {evaluation.resumeFeedback}
+                          </p>
+                        </div>
+                      )}
+
+                      {evaluation.portfolioFeedback && (
+                        <div className="bg-gray-50 rounded-lg p-4">
+                          <h4 className="font-medium text-gray-900 mb-2">
+                            Portfolio Feedback:
+                          </h4>
+                          <p className="text-gray-700 text-sm whitespace-pre-wrap line-clamp-3">
+                            {evaluation.portfolioFeedback}
+                          </p>
+                        </div>
+                      )}
                     </div>
 
                     <div className="flex items-center space-x-3">
-                      <a
-                        href={evaluation.resumeUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors"
-                      >
-                        <ExternalLink className="w-4 h-4 mr-2" />
-                        View Resume
-                      </a>
+                      {evaluation.resumeUrl && (
+                        <a
+                          href={evaluation.resumeUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors"
+                        >
+                          <ExternalLink className="w-4 h-4 mr-2" />
+                          View Resume
+                        </a>
+                      )}
+
+                      {evaluation.portfolioUrl && (
+                        <a
+                          href={evaluation.portfolioUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors"
+                        >
+                          <ExternalLink className="w-4 h-4 mr-2" />
+                          View Portfolio
+                        </a>
+                      )}
 
                       {!evaluation.emailSent ? (
                         <button

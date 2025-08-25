@@ -1,0 +1,42 @@
+{
+  "project": {
+    "id": "4566206088345480358",
+    "name": "resumeEvaluator",
+    "title": "resumeEvaluator",
+    "description": "PDF Services",
+    "org": {
+      "id": "3773786",
+      "name": "rohitpandya228-gmail.com",
+      "ims_org_id": "29FC22826891BA3F0A495E0E@AdobeOrg"
+    },
+    "workspace": {
+      "id": "4566206088345506404",
+      "name": "Production",
+      "title": "resumeEvaluator",
+      "description": "PDF Services",
+      "action_url": "https://3773786-resumeevaluator.adobeioruntime.net",
+      "app_url": "https://3773786-resumeevaluator.adobeio-static.net",
+      "details": {
+        "credentials": [
+          {
+            "id": "818486",
+            "name": "resumeEvaluator",
+            "integration_type": "oauth_server_to_server",
+            "oauth_server_to_server": {
+              "client_id": "dc20391c148d47e39204c6305987cbb1",
+              "client_secrets": ["p8e-n8SVhHYMqqv9dcSmPGkNFb-YwK9QQBbc"],
+              "technical_account_email": "510a778b-8c89-4199-a684-14703bad2edf@techacct.adobe.com",
+              "technical_account_id": "289C22816891BAA60A495C53@techacct.adobe.com",
+              "scopes": ["openid", "AdobeID", "DCAPI"]
+            }
+          }
+        ],
+        "services": [{ "code": "DocCloudSDK", "name": "PDF Services API" }],
+        "runtime": { "namespaces": [] },
+        "events": { "registrations": [] },
+        "mesh": {}
+      },
+      "endpoints": {}
+    }
+  }
+}

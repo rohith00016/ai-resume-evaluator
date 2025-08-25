@@ -1,0 +1,8 @@
+{
+  "ORG_ID": "29FC22826891BA3F0A495E0E@AdobeOrg",
+  "CLIENT_SECRETS": ["p8e-n8SVhHYMqqv9dcSmPGkNFb-YwK9QQBbc"],
+  "CLIENT_ID": "dc20391c148d47e39204c6305987cbb1",
+  "SCOPES": ["openid", "AdobeID", "DCAPI"],
+  "TECHNICAL_ACCOUNT_ID": "289C22816891BAA60A495C53@techacct.adobe.com",
+  "TECHNICAL_ACCOUNT_EMAIL": "510a778b-8c89-4199-a684-14703bad2edf@techacct.adobe.com"
+}

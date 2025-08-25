@@ -14,6 +14,7 @@ import {
   AlertCircle,
   CheckCircle,
   Shield,
+  Globe,
 } from "lucide-react";
 
 const PublicForm = () => {
@@ -26,6 +27,7 @@ const PublicForm = () => {
     name: "",
     email: "",
     course: "",
+    portfolioUrl: "",
   });
   const [file, setFile] = useState(null);
   const [validationErrors, setValidationErrors] = useState({});
@@ -59,6 +61,15 @@ const PublicForm = () => {
       errors.course = "Course is required";
     } else if (!["MERN", "UXUI", "Devops"].includes(formData.course)) {
       errors.course = "Course must be either MERN, UXUI, or Devops";
+    }
+
+    // Portfolio URL validation (optional but if provided, must be valid)
+    if (formData.portfolioUrl.trim()) {
+      try {
+        new URL(formData.portfolioUrl.trim());
+      } catch (error) {
+        errors.portfolioUrl = "Please enter a valid URL";
+      }
     }
 
     // File validation
@@ -122,13 +133,16 @@ const PublicForm = () => {
     formDataToSend.append("name", formData.name.trim());
     formDataToSend.append("email", formData.email.trim().toLowerCase());
     formDataToSend.append("course", formData.course.trim());
+    if (formData.portfolioUrl.trim()) {
+      formDataToSend.append("portfolioUrl", formData.portfolioUrl.trim());
+    }
     formDataToSend.append("resume", file);
 
     dispatch(uploadResume(formDataToSend));
   };
 
   const resetForm = () => {
-    setFormData({ name: "", email: "", course: "" });
+    setFormData({ name: "", email: "", course: "", portfolioUrl: "" });
     setFile(null);
     setValidationErrors({});
     if (fileInputRef.current) {
@@ -180,23 +194,76 @@ const PublicForm = () => {
                   Evaluation Complete!
                 </h3>
                 <div className="bg-gray-50 rounded-lg p-6 mb-6">
-                  <div className="flex items-center justify-center mb-4">
-                    <span className="text-2xl font-bold mr-2">Score:</span>
-                    <span
-                      className={`text-3xl font-bold ${getScoreColor(
-                        currentEvaluation.score
-                      )}`}
-                    >
-                      {currentEvaluation.score}/10
-                    </span>
+                  <div className="space-y-4 mb-4">
+                    {currentEvaluation.resumeScore && (
+                      <div className="flex items-center justify-center">
+                        <span className="text-xl font-bold mr-2">
+                          Resume Score:
+                        </span>
+                        <span
+                          className={`text-2xl font-bold ${getScoreColor(
+                            currentEvaluation.resumeScore
+                          )}`}
+                        >
+                          {currentEvaluation.resumeScore}/10
+                        </span>
+                      </div>
+                    )}
+                    {currentEvaluation.portfolioScore && (
+                      <div className="flex items-center justify-center">
+                        <span className="text-xl font-bold mr-2">
+                          Portfolio Score:
+                        </span>
+                        <span
+                          className={`text-2xl font-bold ${getScoreColor(
+                            currentEvaluation.portfolioScore
+                          )}`}
+                        >
+                          {currentEvaluation.portfolioScore}/10
+                        </span>
+                      </div>
+                    )}
                   </div>
-                  <div className="text-left">
-                    <h4 className="font-semibold text-gray-900 mb-2">
-                      Feedback:
-                    </h4>
-                    <p className="text-gray-700 whitespace-pre-wrap">
-                      {currentEvaluation.feedback}
-                    </p>
+                  {currentEvaluation.portfolioUrl && (
+                    <div className="mb-4 p-3 bg-blue-50 rounded-lg">
+                      <div className="flex items-center">
+                        <Globe className="w-4 h-4 text-blue-600 mr-2" />
+                        <span className="text-sm font-medium text-blue-800">
+                          Portfolio Analyzed:
+                        </span>
+                      </div>
+                      <a
+                        href={currentEvaluation.portfolioUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:text-blue-800 text-sm break-all"
+                      >
+                        {currentEvaluation.portfolioUrl}
+                      </a>
+                    </div>
+                  )}
+                  <div className="space-y-4">
+                    {currentEvaluation.resumeFeedback && (
+                      <div className="text-left">
+                        <h4 className="font-semibold text-gray-900 mb-2">
+                          Resume Feedback:
+                        </h4>
+                        <p className="text-gray-700 whitespace-pre-wrap text-sm">
+                          {currentEvaluation.resumeFeedback}
+                        </p>
+                      </div>
+                    )}
+
+                    {currentEvaluation.portfolioFeedback && (
+                      <div className="text-left">
+                        <h4 className="font-semibold text-gray-900 mb-2">
+                          Portfolio Feedback:
+                        </h4>
+                        <p className="text-gray-700 whitespace-pre-wrap text-sm">
+                          {currentEvaluation.portfolioFeedback}
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
                 <div className="flex gap-4 justify-center">
@@ -206,14 +273,16 @@ const PublicForm = () => {
                   >
                     Submit Another Resume
                   </button>
-                  <a
-                    href={currentEvaluation.resumeUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="bg-gray-600 text-white px-6 py-2 rounded-lg hover:bg-gray-700 transition-colors"
-                  >
-                    View Resume
-                  </a>
+                  {currentEvaluation.resumeUrl && (
+                    <a
+                      href={currentEvaluation.resumeUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="bg-gray-600 text-white px-6 py-2 rounded-lg hover:bg-gray-700 transition-colors"
+                    >
+                      View Resume
+                    </a>
+                  )}
                 </div>
               </div>
             ) : (
@@ -295,6 +364,36 @@ const PublicForm = () => {
                     <p className="text-red-500 text-sm mt-1 flex items-center">
                       <AlertCircle className="w-4 h-4 mr-1" />
                       {validationErrors.course}
+                    </p>
+                  )}
+                </div>
+
+                {/* Portfolio URL Field */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <Globe className="w-4 h-4 inline mr-2" />
+                    Portfolio URL (Optional)
+                  </label>
+                  <input
+                    type="url"
+                    name="portfolioUrl"
+                    value={formData.portfolioUrl}
+                    onChange={handleInputChange}
+                    className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      validationErrors.portfolioUrl
+                        ? "border-red-500"
+                        : "border-gray-300"
+                    }`}
+                    placeholder="https://your-portfolio.com"
+                  />
+                  <p className="text-sm text-gray-500 mt-1">
+                    Provide your deployed portfolio URL for enhanced evaluation
+                    (MERN stack recommended)
+                  </p>
+                  {validationErrors.portfolioUrl && (
+                    <p className="text-red-500 text-sm mt-1 flex items-center">
+                      <AlertCircle className="w-4 h-4 mr-1" />
+                      {validationErrors.portfolioUrl}
                     </p>
                   )}
                 </div>

@@ -30,19 +30,27 @@ const LearnerSchema = new mongoose.Schema(
     },
     resumePublicId: {
       type: String,
-      required: [true, "Resume public ID is required"],
     },
     resumeUrl: {
       type: String,
-      required: [true, "Resume URL is required"],
     },
-    feedback: {
+    resumeFeedback: {
       type: String,
-      required: [true, "Feedback is required"],
     },
-    score: {
+    resumeScore: {
       type: Number,
-      required: [true, "Score is required"],
+      min: [0, "Score cannot be less than 0"],
+      max: [10, "Score cannot be more than 10"],
+      default: 5.0,
+    },
+    portfolioUrl: {
+      type: String,
+    },
+    portfolioFeedback: {
+      type: String,
+    },
+    portfolioScore: {
+      type: Number,
       min: [0, "Score cannot be less than 0"],
       max: [10, "Score cannot be more than 10"],
       default: 5.0,
@@ -62,6 +70,7 @@ const LearnerSchema = new mongoose.Schema(
 
 // Index for better query performance
 LearnerSchema.index({ email: 1, createdAt: -1 });
-LearnerSchema.index({ score: -1 });
+LearnerSchema.index({ resumeScore: -1 });
+LearnerSchema.index({ portfolioScore: -1 });
 
 module.exports = mongoose.model("Learner", LearnerSchema);

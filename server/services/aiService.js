@@ -3,7 +3,7 @@ const { GoogleGenerativeAI } = require("@google/generative-ai");
 class AIService {
   constructor() {
     this.genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    this.model = this.genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    this.model = this.genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
   }
 
   async makeRequestWithRetry(prompt, maxRetries = 3) {
@@ -154,56 +154,56 @@ Portfolio (Weight: 5%)
       case "MERN":
         return `${baseInstructions}
 
-🔷 MERN STACK DEVELOPER EVALUATION CRITERIA:
+      🔷 MERN STACK DEVELOPER EVALUATION CRITERIA:
 
-Required Sections & Scoring Criteria:
+      Required Sections & Scoring Criteria:
 
-Header Section (Weight: 15%)
-- Name and role ("Full Stack Developer", "MERN Developer", etc.)
-- Complete contact information
-- LinkedIn and GitHub links present and properly formatted
-- All links should be clickable/valid
+      Header Section (Weight: 15%)
+      - Name and role ("Full Stack Developer", "MERN Developer", etc.)
+      - Complete contact information
+      - LinkedIn and GitHub links present and properly formatted
+      - All links should be clickable/valid
 
-Summary/Objective (Weight: 10%)
-- 2-3 lines maximum, focused and specific
-- Highlights interest in web/application development
-- Mentions MERN stack or full-stack development
+      Summary/Objective (Weight: 10%)
+      - 2-3 lines maximum, focused and specific
+      - Highlights interest in web/application development
+      - Mentions MERN stack or full-stack development
 
-Skills Section (Weight: 20%)
-- Core MERN Stack: MongoDB, Express.js, React.js, Node.js
-- Additional Technical Skills: Git, REST APIs, JWT, Postman, HTML/CSS, JavaScript ES6+
-- Soft Skills: Problem-solving, debugging, collaboration, continuous learning
-- Skills should be organized by category (Frontend, Backend, Database, Tools)
+      Skills Section (Weight: 20%)
+      - Core MERN Stack: MongoDB, Express.js, React.js, Node.js
+      - Additional Technical Skills: Git, REST APIs, JWT, Postman, HTML/CSS, JavaScript ES6+
+      - Soft Skills: Problem-solving, debugging, collaboration, continuous learning
+      - Skills should be organized by category (Frontend, Backend, Database, Tools)
 
-Projects Section (Weight: 35%)
-- Maximum 3 strong projects
-- Each project requires:
-  * 2-3 line clear description
-  * Technologies and tools used explicitly mentioned
-  * Developer's specific role and contributions
-  * GitHub repository links (must be clickable)
-  * Live demo links when available
-  * Focus on functionality and technical implementation
+      Projects Section (Weight: 35%)
+      - Maximum 3 strong projects
+      - Each project requires:
+        * 2-3 line clear description
+        * Technologies and tools used explicitly mentioned
+        * Developer's specific role and contributions
+        * GitHub repository links (must be clickable)
+        * Live demo links when available
+        * Focus on functionality and technical implementation
 
-Experience Section (Weight: 10%)
-- Use bullet points for readability
-- Describe specific roles and technical contributions
-- Mention technologies used in each role
-- Quantify achievements when possible
-- Example format: "Built user authentication system using JWT and bcrypt"
+      Experience Section (Weight: 10%)
+      - Use bullet points for readability
+      - Describe specific roles and technical contributions
+      - Mention technologies used in each role
+      - Quantify achievements when possible
+      - Example format: "Built user authentication system using JWT and bcrypt"
 
-Education (Weight: 5%)
-  - Education section must be present
-  - Basic degree and institution information is sufficient
+      Education (Weight: 5%)
+        - Education section must be present
+        - Basic degree and institution information is sufficient
 
-Certifications (Weight: 3%)
-- Course name, platform, completion year
-- Focus on relevant programming/web development certifications
+      Certifications (Weight: 3%)
+      - Course name, platform, completion year
+      - Focus on relevant programming/web development certifications
 
-GitHub Profile (Weight: 2%)
-- Clickable GitHub link
-- Profile should show active contributions and repositories
-- README files and project documentation are advantages`;
+      GitHub Profile (Weight: 2%)
+      - Clickable GitHub link
+      - Profile should show active contributions and repositories
+      - README files and project documentation are advantages`;
 
       case "Devops":
         return `${baseInstructions}
@@ -283,6 +283,143 @@ Focus on helping the candidate improve their resume for better job market succes
     const feedback = await this.makeRequestWithRetry(aiPrompt);
     const score = this.extractScore(feedback);
 
+    return { feedback, score: score || 5.0 };
+  }
+
+  async evaluatePortfolio(portfolioUrl, course) {
+    const evaluationCriteria = this.getCourseEvaluationCriteria(course);
+    let scrapedContent = "No content scraped.";
+
+    try {
+      const scrapeWebsite = require("./scraperService");
+      const scrapeResult = await scrapeWebsite(portfolioUrl);
+      if (scrapeResult.success && scrapeResult.scrapedData.length > 0) {
+        scrapedContent = scrapeResult.scrapedData
+          .map((page) => {
+            const texts = page.content.visibleTexts
+              .map((item) => `${item.tag}: ${item.text}`)
+              .join("\n");
+            const links = page.content.links
+              .map((link) => `Link: ${link.text} (${link.href})`)
+              .join("\n");
+            const images = page.content.images
+              .map((img) => `Image: ${img.src} (Alt: ${img.alt})`)
+              .join("\n");
+            return `Page: ${page.page}\n\nVisible Texts:\n${texts}\n\nLinks:\n${links}\n\nImages:\n${images}`;
+          })
+          .join("\n\n---\n\n");
+      }
+    } catch (error) {
+      console.warn(
+        `Failed to scrape portfolio: ${portfolioUrl} — ${error.message}`
+      );
+      scrapedContent = `Unable to scrape content due to: ${error.message}`;
+    }
+
+    const aiPrompt = `
+${evaluationCriteria}
+
+You are an AI portfolio evaluator. Evaluate the following portfolio website submitted by a ${course} student based on the comprehensive portfolio evaluation criteria.
+
+PORTFOLIO URL:
+${portfolioUrl}
+
+SCRAPED CONTENT:
+${scrapedContent}
+
+PORTFOLIO EVALUATION CRITERIA:
+
+1. NAVIGATION AND USER EXPERIENCE (25 points):
+- All links must open in new tabs/pages (target="_blank")
+- Responsive design across different screen sizes
+- Clean and professional UI/UX
+- Fast loading times
+- Intuitive navigation structure
+
+2. RESUME SECTION (15 points):
+- Resume link must be present and functional
+- Resume should open in new tab
+- Option to download resume (PDF format preferred)
+- Resume should be up-to-date and professional
+
+3. SKILLS SECTION (20 points):
+- Dedicated skills section must be visible
+- Clear categorization of technical skills
+- Include both frontend and backend technologies
+- Mention of MERN stack components (MongoDB, Express.js, React.js, Node.js) for MERN students
+- Additional relevant technologies and tools
+
+4. PROJECTS SECTION (25 points):
+- Minimum 3 projects must be displayed
+- Each project must include:
+  * Project description (clear and detailed explanation)
+  * Tech stack used (technologies and frameworks)
+  * GitHub links (separate for frontend and backend if applicable)
+  * Deployed links (separate for frontend and backend if full-stack)
+- Projects should demonstrate progression in complexity
+- Variety in project types and technologies
+
+5. SOCIAL PROFILE LINKS (15 points):
+- LinkedIn profile link (must open in new tab)
+- Gmail/Email contact (clickable mailto link or contact form)
+- GitHub profile link (must open in new tab)
+- All social links should be easily accessible
+
+BONUS FEATURES (Extra Credit - up to 5 points):
+- Dark/Light mode toggle
+- Smooth animations and transitions
+- SEO optimization
+- Contact form functionality
+- Blog or articles section
+- Testimonials or recommendations
+- Certificates and achievements display
+- Analytics integration
+
+TECHNICAL EXCELLENCE:
+- Clean, semantic HTML structure
+- Optimized images and assets
+- Cross-browser compatibility
+- Accessibility standards compliance
+- Performance optimization
+- Security best practices
+
+CONTENT QUALITY:
+- Professional photography/images
+- Well-written project descriptions
+- Clear and concise copy
+- Regular updates and maintenance
+- Personal branding consistency
+
+RED FLAGS (Deductions):
+- Broken links or non-functional features
+- Poor mobile responsiveness
+- Extremely slow loading times
+- Unprofessional content or presentation
+- Missing critical information
+- Links that don't open in new tabs
+- Placeholder or dummy content
+- Copyright violations or plagiarized content
+
+EVALUATION FORMAT:
+Overall Score: X/10
+
+Strengths:
+- Bullet points listing 2-3 strong areas based on the criteria above
+
+Areas for Improvement:
+- Bullet points with 3–5 specific improvement suggestions based on missing criteria
+
+Missing Elements:
+- List anything critical that’s missing (e.g., no contact form, no project explanations)
+
+Recommendations:
+- Bullet points with clear next steps to improve this portfolio based on the evaluation criteria
+
+Please evaluate thoroughly against these specific criteria and return only the formatted feedback.
+`;
+
+    const feedback = await this.makeRequestWithRetry(aiPrompt);
+    const score = this.extractScore(feedback);
     return { feedback, score: score || 5.0 };
   }
 }
