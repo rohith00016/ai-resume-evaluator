@@ -15,11 +15,14 @@ const Manage = () => {
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      const response = await axios.get("http://localhost:5000/api/auth/users", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const response = await axios.get(
+        `${import.meta.env.VITE_API_URL}/auth/users`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
       setUsers(response.data);
       setMessage({
         type: "success",
@@ -40,7 +43,7 @@ const Manage = () => {
     setPromoting(userId);
     try {
       const response = await axios.put(
-        `http://localhost:5000/api/auth/promote/${userId}`,
+        `${import.meta.env.VITE_API_URL}/auth/promote/${userId}`,
         {},
         {
           headers: {
@@ -213,4 +216,3 @@ const Manage = () => {
 };
 
 export default Manage;
-

@@ -44,7 +44,7 @@ const PortfolioForm = () => {
 
     try {
       const response = await axios.post(
-        "http://localhost:5000/api/portfolios",
+        `${import.meta.env.VITE_API_URL}/portfolios`,
         formData,
         {
           headers: {

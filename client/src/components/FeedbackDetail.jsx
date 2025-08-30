@@ -26,7 +26,7 @@ const FeedbackDetail = () => {
     const fetchSubmission = async () => {
       try {
         const response = await axios.get(
-          `http://localhost:5000/api/learners/${submissionId}`,
+          `${import.meta.env.VITE_API_URL}/learners/${submissionId}`,
           {
             headers: {
               Authorization: `Bearer ${token}`,

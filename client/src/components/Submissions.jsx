@@ -23,11 +23,14 @@ const Submissions = () => {
   const fetchSubmissions = async () => {
     setLoading(true);
     try {
-      const response = await axios.get("http://localhost:5000/api/learners", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const response = await axios.get(
+        `${import.meta.env.VITE_API_URL}/learners`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
       setSubmissions(response.data);
     } catch (error) {
       console.error("Error fetching submissions:", error);
@@ -41,7 +44,7 @@ const Submissions = () => {
     setSendingEmailId(submissionId);
     try {
       const response = await axios.post(
-        "http://localhost:5000/api/send-feedback",
+        `${import.meta.env.VITE_API_URL}/send-feedback`,
         { evaluationId: submissionId },
         {
           headers: {
