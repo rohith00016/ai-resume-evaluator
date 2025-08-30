@@ -8,7 +8,6 @@ import {
 import {
   Upload,
   User,
-  Mail,
   FileText,
   Send,
   AlertCircle,
@@ -25,7 +24,6 @@ const PublicForm = () => {
 
   const [formData, setFormData] = useState({
     name: "",
-    email: "",
     course: "",
     portfolioUrl: "",
   });
@@ -45,15 +43,6 @@ const PublicForm = () => {
       errors.name = "Name cannot exceed 40 characters";
     } else if (!/^[a-zA-Z\s]+$/.test(formData.name)) {
       errors.name = "Name can only contain alphabetic characters";
-    }
-
-    // Email validation
-    if (!formData.email.trim()) {
-      errors.email = "Email is required";
-    } else if (
-      !/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/.test(formData.email)
-    ) {
-      errors.email = "Please enter a valid email address";
     }
 
     // Course validation
@@ -195,34 +184,36 @@ const PublicForm = () => {
                 </h3>
                 <div className="bg-gray-50 rounded-lg p-6 mb-6">
                   <div className="space-y-4 mb-4">
-                    {currentEvaluation.resumeScore && (
-                      <div className="flex items-center justify-center">
-                        <span className="text-xl font-bold mr-2">
-                          Resume Score:
-                        </span>
-                        <span
-                          className={`text-2xl font-bold ${getScoreColor(
-                            currentEvaluation.resumeScore
-                          )}`}
-                        >
-                          {currentEvaluation.resumeScore}/10
-                        </span>
-                      </div>
-                    )}
-                    {currentEvaluation.portfolioScore && (
-                      <div className="flex items-center justify-center">
-                        <span className="text-xl font-bold mr-2">
-                          Portfolio Score:
-                        </span>
-                        <span
-                          className={`text-2xl font-bold ${getScoreColor(
-                            currentEvaluation.portfolioScore
-                          )}`}
-                        >
-                          {currentEvaluation.portfolioScore}/10
-                        </span>
-                      </div>
-                    )}
+                    {currentEvaluation.resumeScore &&
+                      currentEvaluation.resumeFeedback && (
+                        <div className="flex items-center justify-center">
+                          <span className="text-xl font-bold mr-2">
+                            Resume Score:
+                          </span>
+                          <span
+                            className={`text-2xl font-bold ${getScoreColor(
+                              currentEvaluation.resumeScore
+                            )}`}
+                          >
+                            {currentEvaluation.resumeScore}/10
+                          </span>
+                        </div>
+                      )}
+                    {currentEvaluation.portfolioScore &&
+                      currentEvaluation.portfolioFeedback && (
+                        <div className="flex items-center justify-center">
+                          <span className="text-xl font-bold mr-2">
+                            Portfolio Score:
+                          </span>
+                          <span
+                            className={`text-2xl font-bold ${getScoreColor(
+                              currentEvaluation.portfolioScore
+                            )}`}
+                          >
+                            {currentEvaluation.portfolioScore}/10
+                          </span>
+                        </div>
+                      )}
                   </div>
                   {currentEvaluation.portfolioUrl && (
                     <div className="mb-4 p-3 bg-blue-50 rounded-lg">
@@ -309,32 +300,6 @@ const PublicForm = () => {
                     <p className="text-red-500 text-sm mt-1 flex items-center">
                       <AlertCircle className="w-4 h-4 mr-1" />
                       {validationErrors.name}
-                    </p>
-                  )}
-                </div>
-
-                {/* Email Field */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    <Mail className="w-4 h-4 inline mr-2" />
-                    Email Address
-                  </label>
-                  <input
-                    type="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleInputChange}
-                    className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                      validationErrors.email
-                        ? "border-red-500"
-                        : "border-gray-300"
-                    }`}
-                    placeholder="Enter your email address"
-                  />
-                  {validationErrors.email && (
-                    <p className="text-red-500 text-sm mt-1 flex items-center">
-                      <AlertCircle className="w-4 h-4 mr-1" />
-                      {validationErrors.email}
                     </p>
                   )}
                 </div>

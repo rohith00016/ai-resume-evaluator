@@ -10,6 +10,7 @@ const errorHandler = require("./middleware/errorHandler");
 
 // Import routes
 const resumeRoutes = require("./routes/resumeRoutes");
+const authRoutes = require("./routes/authRoutes");
 
 const app = express();
 
@@ -20,6 +21,7 @@ app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
 // Routes
 app.use("/api", resumeRoutes);
+app.use("/api/auth", authRoutes);
 
 // Health check endpoint
 app.get("/health", (req, res) => {

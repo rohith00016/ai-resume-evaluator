@@ -8,7 +8,6 @@ import {
 import {
   Upload,
   User,
-  Mail,
   FileText,
   Send,
   AlertCircle,
@@ -16,7 +15,6 @@ import {
   Share,
   Copy,
 } from "lucide-react";
-import NavBar from "./NavBar";
 
 const LearnerForm = () => {
   const dispatch = useDispatch();
@@ -26,7 +24,6 @@ const LearnerForm = () => {
 
   const [formData, setFormData] = useState({
     name: "",
-    email: "",
     course: "",
   });
   const [file, setFile] = useState(null);
@@ -47,15 +44,6 @@ const LearnerForm = () => {
       errors.name = "Name cannot exceed 40 characters";
     } else if (!/^[a-zA-Z\s]+$/.test(formData.name)) {
       errors.name = "Name can only contain alphabetic characters";
-    }
-
-    // Email validation
-    if (!formData.email.trim()) {
-      errors.email = "Email is required";
-    } else if (
-      !/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/.test(formData.email)
-    ) {
-      errors.email = "Please enter a valid email address";
     }
 
     // Course validation
@@ -171,64 +159,63 @@ const LearnerForm = () => {
   };
 
   return (
-    <>
-      <NavBar />
-      <div className="max-w-2xl mx-auto p-6">
-        <div className="bg-white rounded-lg shadow-lg p-8">
-          <div className="flex justify-between items-center mb-8">
-            <h2 className="text-3xl font-bold text-gray-900">
-              Resume Evaluation
-            </h2>
-            <button
-              onClick={generatePublicLink}
-              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md text-sm font-medium text-white bg-green-600 hover:bg-green-700 transition-colors"
-            >
-              <Share className="w-4 h-4 mr-2" />
-              Generate Public Link
-            </button>
-          </div>
+    <div className="max-w-2xl mx-auto p-6">
+      <div className="bg-white rounded-lg shadow-lg p-8">
+        <div className="flex justify-between items-center mb-8">
+          <h2 className="text-3xl font-bold text-gray-900">
+            Resume Evaluation
+          </h2>
+          <button
+            onClick={generatePublicLink}
+            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md text-sm font-medium text-white bg-green-600 hover:bg-green-700 transition-colors"
+          >
+            <Share className="w-4 h-4 mr-2" />
+            Generate Public Link
+          </button>
+        </div>
 
-          {/* Public Link Display */}
-          {showPublicLink && (
-            <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
-              <h4 className="font-medium text-green-900 mb-2">
-                Public Form Link Generated!
-              </h4>
-              <div className="flex items-center space-x-2">
-                <input
-                  type="text"
-                  value={`${window.location.origin}/public`}
-                  readOnly
-                  className="flex-1 px-3 py-2 border border-green-300 rounded-md text-sm bg-white"
-                />
-                <button
-                  onClick={copyPublicLink}
-                  className={`inline-flex items-center px-3 py-2 border border-transparent rounded-md text-sm font-medium transition-colors ${
-                    linkCopied
-                      ? "bg-green-100 text-green-800"
-                      : "bg-green-600 text-white hover:bg-green-700"
-                  }`}
-                >
-                  <Copy className="w-4 h-4 mr-1" />
-                  {linkCopied ? "Copied!" : "Copy"}
-                </button>
-              </div>
-              <p className="text-green-700 text-sm mt-2">
-                Share this link with students to allow them to submit resumes
-                without accessing the admin panel.
-              </p>
+        {/* Public Link Display */}
+        {showPublicLink && (
+          <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+            <h4 className="font-medium text-green-900 mb-2">
+              Public Form Link Generated!
+            </h4>
+            <div className="flex items-center space-x-2">
+              <input
+                type="text"
+                value={`${window.location.origin}/public`}
+                readOnly
+                className="flex-1 px-3 py-2 border border-green-300 rounded-md text-sm bg-white"
+              />
+              <button
+                onClick={copyPublicLink}
+                className={`inline-flex items-center px-3 py-2 border border-transparent rounded-md text-sm font-medium transition-colors ${
+                  linkCopied
+                    ? "bg-green-100 text-green-800"
+                    : "bg-green-600 text-white hover:bg-green-700"
+                }`}
+              >
+                <Copy className="w-4 h-4 mr-1" />
+                {linkCopied ? "Copied!" : "Copy"}
+              </button>
             </div>
-          )}
+            <p className="text-green-700 text-sm mt-2">
+              Share this link with students to allow them to submit resumes
+              without accessing the admin panel.
+            </p>
+          </div>
+        )}
 
-          {currentEvaluation ? (
-            <div className="text-center">
-              <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
-              <h3 className="text-xl font-semibold text-gray-900 mb-4">
-                Evaluation Complete!
-              </h3>
-              <div className="bg-gray-50 rounded-lg p-6 mb-6">
-                <div className="space-y-4 mb-4">
-                  {currentEvaluation.resumeScore && (
+        {currentEvaluation ? (
+          <div className="text-center">
+            <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
+            <h3 className="text-xl font-semibold text-gray-900 mb-4">
+              Evaluation Complete!
+            </h3>
+            <div className="bg-gray-50 rounded-lg p-6 mb-6">
+              <div className="space-y-4 mb-4">
+                {currentEvaluation.resumeScore &&
+                  currentEvaluation.resumeFeedback && (
                     <div className="flex items-center justify-center">
                       <span className="text-xl font-bold mr-2">
                         Resume Score:
@@ -242,7 +229,8 @@ const LearnerForm = () => {
                       </span>
                     </div>
                   )}
-                  {currentEvaluation.portfolioScore && (
+                {currentEvaluation.portfolioScore &&
+                  currentEvaluation.portfolioFeedback && (
                     <div className="flex items-center justify-center">
                       <span className="text-xl font-bold mr-2">
                         Portfolio Score:
@@ -256,211 +244,182 @@ const LearnerForm = () => {
                       </span>
                     </div>
                   )}
-                </div>
-                <div className="space-y-4">
-                  {currentEvaluation.resumeFeedback && (
-                    <div className="text-left">
-                      <h4 className="font-semibold text-gray-900 mb-2">
-                        Resume Feedback:
-                      </h4>
-                      <p className="text-gray-700 whitespace-pre-wrap text-sm">
-                        {currentEvaluation.resumeFeedback}
-                      </p>
-                    </div>
-                  )}
-
-                  {currentEvaluation.portfolioFeedback && (
-                    <div className="text-left">
-                      <h4 className="font-semibold text-gray-900 mb-2">
-                        Portfolio Feedback:
-                      </h4>
-                      <p className="text-gray-700 whitespace-pre-wrap text-sm">
-                        {currentEvaluation.portfolioFeedback}
-                      </p>
-                    </div>
-                  )}
-                </div>
               </div>
-              <div className="flex gap-4 justify-center">
-                <button
-                  onClick={resetForm}
-                  className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  Submit Another Resume
-                </button>
-                {currentEvaluation.resumeUrl && (
-                  <a
-                    href={currentEvaluation.resumeUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="bg-gray-600 text-white px-6 py-2 rounded-lg hover:bg-gray-700 transition-colors"
-                  >
-                    View Resume
-                  </a>
+              <div className="space-y-4">
+                {currentEvaluation.resumeFeedback && (
+                  <div className="text-left">
+                    <h4 className="font-semibold text-gray-900 mb-2">
+                      Resume Feedback:
+                    </h4>
+                    <p className="text-gray-700 whitespace-pre-wrap text-sm">
+                      {currentEvaluation.resumeFeedback}
+                    </p>
+                  </div>
+                )}
+
+                {currentEvaluation.portfolioFeedback && (
+                  <div className="text-left">
+                    <h4 className="font-semibold text-gray-900 mb-2">
+                      Portfolio Feedback:
+                    </h4>
+                    <p className="text-gray-700 whitespace-pre-wrap text-sm">
+                      {currentEvaluation.portfolioFeedback}
+                    </p>
+                  </div>
                 )}
               </div>
             </div>
-          ) : (
-            <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Name Field */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  <User className="w-4 h-4 inline mr-2" />
-                  Full Name
-                </label>
-                <input
-                  type="text"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleInputChange}
-                  className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                    validationErrors.name ? "border-red-500" : "border-gray-300"
-                  }`}
-                  placeholder="Enter your full name"
-                />
-                {validationErrors.name && (
-                  <p className="text-red-500 text-sm mt-1 flex items-center">
-                    <AlertCircle className="w-4 h-4 mr-1" />
-                    {validationErrors.name}
-                  </p>
-                )}
-              </div>
-
-              {/* Email Field */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  <Mail className="w-4 h-4 inline mr-2" />
-                  Email Address
-                </label>
-                <input
-                  type="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleInputChange}
-                  className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                    validationErrors.email
-                      ? "border-red-500"
-                      : "border-gray-300"
-                  }`}
-                  placeholder="Enter your email address"
-                />
-                {validationErrors.email && (
-                  <p className="text-red-500 text-sm mt-1 flex items-center">
-                    <AlertCircle className="w-4 h-4 mr-1" />
-                    {validationErrors.email}
-                  </p>
-                )}
-              </div>
-
-              {/* Course Field */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  <FileText className="w-4 h-4 inline mr-2" />
-                  Course
-                </label>
-                <select
-                  name="course"
-                  value={formData.course}
-                  onChange={handleInputChange}
-                  className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                    validationErrors.course
-                      ? "border-red-500"
-                      : "border-gray-300"
-                  }`}
-                >
-                  <option value="">Select a course</option>
-                  <option value="MERN">MERN Stack Developer</option>
-                  <option value="UXUI">UI/UX Designer</option>
-                  <option value="Devops">DevOps Engineer</option>
-                </select>
-                {validationErrors.course && (
-                  <p className="text-red-500 text-sm mt-1 flex items-center">
-                    <AlertCircle className="w-4 h-4 mr-1" />
-                    {validationErrors.course}
-                  </p>
-                )}
-              </div>
-
-              {/* File Upload */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  <Upload className="w-4 h-4 inline mr-2" />
-                  Resume (PDF)
-                </label>
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-400 transition-colors">
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept=".pdf"
-                    onChange={handleFileChange}
-                    className="hidden"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="text-blue-600 hover:text-blue-700 font-medium"
-                  >
-                    {file ? file.name : "Choose PDF file"}
-                  </button>
-                  <p className="text-sm text-gray-500 mt-2">
-                    Maximum file size: 10MB
-                  </p>
-                </div>
-                {validationErrors.file && (
-                  <p className="text-red-500 text-sm mt-1 flex items-center">
-                    <AlertCircle className="w-4 h-4 mr-1" />
-                    {validationErrors.file}
-                  </p>
-                )}
-              </div>
-
-              {/* Progress Bar */}
-              {loading && uploadProgress > 0 && (
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div
-                    className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                    style={{ width: `${uploadProgress}%` }}
-                  ></div>
-                </div>
-              )}
-
-              {/* Error Display */}
-              {error && (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                  <div className="flex items-center">
-                    <AlertCircle className="w-5 h-5 text-red-500 mr-2" />
-                    <p className="text-red-700">{error}</p>
-                  </div>
-                </div>
-              )}
-
-              {/* Submit Button */}
+            <div className="flex gap-4 justify-center">
               <button
-                type="submit"
-                disabled={loading}
-                className={`w-full flex items-center justify-center px-6 py-3 rounded-lg font-medium transition-colors ${
-                  loading
-                    ? "bg-gray-400 cursor-not-allowed"
-                    : "bg-blue-600 hover:bg-blue-700 text-white"
+                onClick={resetForm}
+                className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Submit Another Resume
+              </button>
+              {currentEvaluation.resumeUrl && (
+                <a
+                  href={currentEvaluation.resumeUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="bg-gray-600 text-white px-6 py-2 rounded-lg hover:bg-gray-700 transition-colors"
+                >
+                  View Resume
+                </a>
+              )}
+            </div>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Name Field */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                <User className="w-4 h-4 inline mr-2" />
+                Full Name
+              </label>
+              <input
+                type="text"
+                name="name"
+                value={formData.name}
+                onChange={handleInputChange}
+                className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                  validationErrors.name ? "border-red-500" : "border-gray-300"
+                }`}
+                placeholder="Enter your full name"
+              />
+              {validationErrors.name && (
+                <p className="text-red-500 text-sm mt-1 flex items-center">
+                  <AlertCircle className="w-4 h-4 mr-1" />
+                  {validationErrors.name}
+                </p>
+              )}
+            </div>
+
+            {/* Course Field */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                <FileText className="w-4 h-4 inline mr-2" />
+                Course
+              </label>
+              <select
+                name="course"
+                value={formData.course}
+                onChange={handleInputChange}
+                className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                  validationErrors.course ? "border-red-500" : "border-gray-300"
                 }`}
               >
-                {loading ? (
-                  <>
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                    Processing...
-                  </>
-                ) : (
-                  <>
-                    <Send className="w-5 h-5 mr-2" />
-                    Submit Resume
-                  </>
-                )}
-              </button>
-            </form>
-          )}
-        </div>
+                <option value="">Select a course</option>
+                <option value="MERN">MERN Stack Developer</option>
+                <option value="UXUI">UI/UX Designer</option>
+                <option value="Devops">DevOps Engineer</option>
+              </select>
+              {validationErrors.course && (
+                <p className="text-red-500 text-sm mt-1 flex items-center">
+                  <AlertCircle className="w-4 h-4 mr-1" />
+                  {validationErrors.course}
+                </p>
+              )}
+            </div>
+
+            {/* File Upload */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                <Upload className="w-4 h-4 inline mr-2" />
+                Resume (PDF)
+              </label>
+              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-400 transition-colors">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".pdf"
+                  onChange={handleFileChange}
+                  className="hidden"
+                />
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="text-blue-600 hover:text-blue-700 font-medium"
+                >
+                  {file ? file.name : "Choose PDF file"}
+                </button>
+                <p className="text-sm text-gray-500 mt-2">
+                  Maximum file size: 10MB
+                </p>
+              </div>
+              {validationErrors.file && (
+                <p className="text-red-500 text-sm mt-1 flex items-center">
+                  <AlertCircle className="w-4 h-4 mr-1" />
+                  {validationErrors.file}
+                </p>
+              )}
+            </div>
+
+            {/* Progress Bar */}
+            {loading && uploadProgress > 0 && (
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div
+                  className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                  style={{ width: `${uploadProgress}%` }}
+                ></div>
+              </div>
+            )}
+
+            {/* Error Display */}
+            {error && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                <div className="flex items-center">
+                  <AlertCircle className="w-5 h-5 text-red-500 mr-2" />
+                  <p className="text-red-700">{error}</p>
+                </div>
+              </div>
+            )}
+
+            {/* Submit Button */}
+            <button
+              type="submit"
+              disabled={loading}
+              className={`w-full flex items-center justify-center px-6 py-3 rounded-lg font-medium transition-colors ${
+                loading
+                  ? "bg-gray-400 cursor-not-allowed"
+                  : "bg-blue-600 hover:bg-blue-700 text-white"
+              }`}
+            >
+              {loading ? (
+                <>
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                  Processing...
+                </>
+              ) : (
+                <>
+                  <Send className="w-5 h-5 mr-2" />
+                  Submit Resume
+                </>
+              )}
+            </button>
+          </form>
+        )}
       </div>
-    </>
+    </div>
   );
 };
 

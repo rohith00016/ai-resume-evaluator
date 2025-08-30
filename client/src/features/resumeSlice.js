@@ -24,9 +24,14 @@ export const uploadResume = createAsyncThunk(
 
 export const fetchEvaluations = createAsyncThunk(
   "resume/fetchEvaluations",
-  async (_, { rejectWithValue }) => {
+  async (_, { rejectWithValue, getState }) => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/learners`);
+      const { token } = getState().auth;
+      const response = await axios.get(`${API_BASE_URL}/learners`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data || { error: "Fetch failed" });
@@ -36,11 +41,20 @@ export const fetchEvaluations = createAsyncThunk(
 
 export const sendFeedbackEmail = createAsyncThunk(
   "resume/sendFeedbackEmail",
-  async (evaluationId, { rejectWithValue }) => {
+  async (evaluationId, { rejectWithValue, getState }) => {
     try {
-      const response = await axios.post(`${API_BASE_URL}/send-feedback`, {
-        evaluationId,
-      });
+      const { token } = getState().auth;
+      const response = await axios.post(
+        `${API_BASE_URL}/send-feedback`,
+        {
+          evaluationId,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
       return response.data;
     } catch (error) {
       return rejectWithValue(

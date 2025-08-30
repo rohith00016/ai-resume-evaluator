@@ -37,6 +37,17 @@ Create a `.env` file in the server directory with the following variables:
   - Generate from: https://myaccount.google.com/apppasswords
   - Required: Yes
 
+### Authentication
+
+- `JWT_SECRET`: Secret key for JWT token signing
+  - Generate a strong random string (at least 32 characters)
+  - Example: `your-super-secret-jwt-key-here-32-chars-min`
+  - Required: Yes
+- `ADMIN_REGISTRATION_CODE`: Secret code for admin registration
+  - Generate a secure random string (at least 8 characters)
+  - Example: `admin-secret-2024`
+  - Required: Yes (for admin functionality)
+
 ### Application Configuration
 
 - `NODE_ENV`: Environment mode
@@ -57,6 +68,8 @@ CLOUDINARY_API_KEY=your_cloudinary_api_key
 CLOUDINARY_API_SECRET=your_cloudinary_api_secret
 MAIL_USER=your_gmail_address@gmail.com
 MAIL_PASS=your_gmail_app_password
+JWT_SECRET=your-super-secret-jwt-key-here-32-chars-min
+ADMIN_REGISTRATION_CODE=admin-secret-2024
 NODE_ENV=development
 PORT=5000
 ```

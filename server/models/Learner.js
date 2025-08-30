@@ -28,6 +28,11 @@ const LearnerSchema = new mongoose.Schema(
         message: "Course must be either MERN, UXUI, or Devops",
       },
     },
+    submittedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
     resumePublicId: {
       type: String,
     },
@@ -72,5 +77,6 @@ const LearnerSchema = new mongoose.Schema(
 LearnerSchema.index({ email: 1, createdAt: -1 });
 LearnerSchema.index({ resumeScore: -1 });
 LearnerSchema.index({ portfolioScore: -1 });
+LearnerSchema.index({ submittedBy: 1 });
 
 module.exports = mongoose.model("Learner", LearnerSchema);

@@ -1,33 +1,30 @@
 import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { fetchEvaluations, sendFeedbackEmail } from "../features/resumeSlice";
-import {
-  Mail,
-  ExternalLink,
-  Calendar,
-  Star,
-  User,
-  AlertCircle,
-  BookOpen,
-  RefreshCw,
-  Eye,
-  X,
-  Globe,
-} from "lucide-react";
+import { AlertCircle, RefreshCw, X } from "lucide-react";
 import NavBar from "./NavBar";
+import SubmissionCard from "./SubmissionCard";
 
 const StudentsData = () => {
   const dispatch = useDispatch();
   const { evaluations, loading, error } = useSelector((state) => state.resume);
   const [selectedEvaluation, setSelectedEvaluation] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [sendingEmailId, setSendingEmailId] = useState(null);
 
   useEffect(() => {
     dispatch(fetchEvaluations());
   }, [dispatch]);
 
-  const handleSendEmail = (evaluationId) => {
-    dispatch(sendFeedbackEmail(evaluationId));
+  const handleSendEmail = async (evaluationId) => {
+    try {
+      setSendingEmailId(evaluationId);
+      await dispatch(sendFeedbackEmail(evaluationId)).unwrap();
+    } catch (error) {
+      console.error("Failed to send email:", error);
+    } finally {
+      setSendingEmailId(null);
+    }
   };
 
   const handleViewEvaluation = (evaluation) => {
@@ -38,35 +35,6 @@ const StudentsData = () => {
   const closeModal = () => {
     setIsModalOpen(false);
     setSelectedEvaluation(null);
-  };
-
-  const getScoreColor = (score) => {
-    if (score >= 8) return "text-green-600 bg-green-100";
-    if (score >= 6) return "text-yellow-600 bg-yellow-100";
-    return "text-red-600 bg-red-100";
-  };
-
-  const getCourseBadgeColor = (course) => {
-    switch (course) {
-      case "MERN":
-        return "bg-blue-100 text-blue-800";
-      case "UXUI":
-        return "bg-purple-100 text-purple-800";
-      case "Devops":
-        return "bg-green-100 text-green-800";
-      default:
-        return "bg-gray-100 text-gray-800";
-    }
-  };
-
-  const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
   };
 
   if (loading) {
@@ -101,9 +69,9 @@ const StudentsData = () => {
   return (
     <>
       <NavBar />
-      <div className="max-w-7xl mx-auto p-6">
-        <div className="bg-white rounded-lg shadow-lg">
-          <div className="px-6 py-4 border-b border-gray-200">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="bg-white shadow rounded-lg p-6">
+          <div className="mb-6">
             <h2 className="text-2xl font-bold text-gray-900">Students Data</h2>
             <p className="text-gray-600 mt-1">
               {evaluations.length} student{evaluations.length !== 1 ? "s" : ""}{" "}
@@ -112,191 +80,24 @@ const StudentsData = () => {
           </div>
 
           {evaluations.length === 0 ? (
-            <div className="p-8 text-center">
+            <div className="text-center py-12">
               <p className="text-gray-500 text-lg">No students data found.</p>
               <p className="text-gray-400 mt-2">
                 Submit a resume to see data here.
               </p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Student Info
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Course
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Portfolio
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Scores
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      View Evaluation
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      PDF Link
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Mail Status
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {evaluations.map((evaluation) => (
-                    <tr
-                      key={evaluation._id}
-                      className="hover:bg-gray-50 transition-colors"
-                    >
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div>
-                          <div className="flex items-center">
-                            <User className="w-4 h-4 text-gray-400 mr-2" />
-                            <span className="font-medium text-gray-900">
-                              {evaluation.name}
-                            </span>
-                          </div>
-                          <div className="text-sm text-gray-600 mt-1">
-                            {evaluation.email}
-                          </div>
-                          <div className="flex items-center text-xs text-gray-500 mt-1">
-                            <Calendar className="w-3 h-3 mr-1" />
-                            {formatDate(evaluation.createdAt)}
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span
-                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getCourseBadgeColor(
-                            evaluation.course
-                          )}`}
-                        >
-                          <BookOpen className="w-3 h-3 mr-1" />
-                          {evaluation.course}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        {evaluation.portfolioUrl ? (
-                          <a
-                            href={evaluation.portfolioUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center text-blue-600 hover:text-blue-800 text-sm"
-                          >
-                            <Globe className="w-4 h-4 mr-1" />
-                            View Portfolio
-                          </a>
-                        ) : (
-                          <span className="text-gray-400 text-sm">
-                            Not provided
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="space-y-1">
-                          {evaluation.resumeScore && (
-                            <div
-                              className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getScoreColor(
-                                evaluation.resumeScore
-                              )}`}
-                            >
-                              <Star className="w-3 h-3 mr-1" />
-                              Resume: {evaluation.resumeScore}/10
-                            </div>
-                          )}
-                          {evaluation.portfolioScore && (
-                            <div
-                              className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getScoreColor(
-                                evaluation.portfolioScore
-                              )}`}
-                            >
-                              <Globe className="w-3 h-3 mr-1" />
-                              Portfolio: {evaluation.portfolioScore}/10
-                            </div>
-                          )}
-                          {!evaluation.resumeScore &&
-                            !evaluation.portfolioScore && (
-                              <span className="text-gray-400 text-xs">
-                                No scores
-                              </span>
-                            )}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <button
-                          onClick={() => handleViewEvaluation(evaluation)}
-                          className="inline-flex items-center px-3 py-1 border border-transparent rounded text-xs font-medium text-white bg-purple-600 hover:bg-purple-700 transition-colors"
-                        >
-                          <Eye className="w-3 h-3 mr-1" />
-                          View Details
-                        </button>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        {evaluation.resumeUrl ? (
-                          <a
-                            href={evaluation.resumeUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center text-blue-600 hover:text-blue-800 text-sm"
-                          >
-                            <ExternalLink className="w-4 h-4 mr-1" />
-                            View PDF
-                          </a>
-                        ) : (
-                          <span className="text-gray-400 text-sm">
-                            Not provided
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        {evaluation.emailSent ? (
-                          <div className="text-sm">
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                              <Mail className="w-3 h-3 mr-1" />
-                              Sent
-                            </span>
-                            {evaluation.emailSentAt && (
-                              <div className="text-xs text-gray-500 mt-1">
-                                {formatDate(evaluation.emailSentAt)}
-                              </div>
-                            )}
-                          </div>
-                        ) : (
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                            Not Sent
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <button
-                          onClick={() => handleSendEmail(evaluation._id)}
-                          disabled={loading}
-                          className="inline-flex items-center px-3 py-1 border border-transparent rounded text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
-                        >
-                          {evaluation.emailSent ? (
-                            <>
-                              <RefreshCw className="w-3 h-3 mr-1" />
-                              Resend
-                            </>
-                          ) : (
-                            <>
-                              <Mail className="w-3 h-3 mr-1" />
-                              Send
-                            </>
-                          )}
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="space-y-4">
+              {evaluations.map((evaluation) => (
+                <SubmissionCard
+                  key={evaluation._id}
+                  evaluation={evaluation}
+                  onViewDetails={handleViewEvaluation}
+                  onSendEmail={handleSendEmail}
+                  userRole="admin"
+                  sendingEmailId={sendingEmailId}
+                />
+              ))}
             </div>
           )}
         </div>
@@ -376,34 +177,36 @@ const StudentsData = () => {
                   <div className="bg-gray-50 rounded-lg p-4">
                     <h4 className="font-medium text-gray-900 mb-3">Scores</h4>
                     <div className="space-y-3">
-                      {selectedEvaluation.resumeScore && (
-                        <div className="flex items-center justify-between">
-                          <span className="text-gray-600">Resume Score:</span>
-                          <div
-                            className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getScoreColor(
-                              selectedEvaluation.resumeScore
-                            )}`}
-                          >
-                            <Star className="w-4 h-4 mr-1" />
-                            {selectedEvaluation.resumeScore}/10
+                      {selectedEvaluation.resumeScore &&
+                        selectedEvaluation.resumeFeedback && (
+                          <div className="flex items-center justify-between">
+                            <span className="text-gray-600">Resume Score:</span>
+                            <div
+                              className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getScoreColor(
+                                selectedEvaluation.resumeScore
+                              )}`}
+                            >
+                              <Star className="w-4 h-4 mr-1" />
+                              {selectedEvaluation.resumeScore}/10
+                            </div>
                           </div>
-                        </div>
-                      )}
-                      {selectedEvaluation.portfolioScore && (
-                        <div className="flex items-center justify-between">
-                          <span className="text-gray-600">
-                            Portfolio Score:
-                          </span>
-                          <div
-                            className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getScoreColor(
-                              selectedEvaluation.portfolioScore
-                            )}`}
-                          >
-                            <Globe className="w-4 h-4 mr-1" />
-                            {selectedEvaluation.portfolioScore}/10
+                        )}
+                      {selectedEvaluation.portfolioScore &&
+                        selectedEvaluation.portfolioFeedback && (
+                          <div className="flex items-center justify-between">
+                            <span className="text-gray-600">
+                              Portfolio Score:
+                            </span>
+                            <div
+                              className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getScoreColor(
+                                selectedEvaluation.portfolioScore
+                              )}`}
+                            >
+                              <Globe className="w-4 h-4 mr-1" />
+                              {selectedEvaluation.portfolioScore}/10
+                            </div>
                           </div>
-                        </div>
-                      )}
+                        )}
                     </div>
                   </div>
 
