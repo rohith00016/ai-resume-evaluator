@@ -30,7 +30,7 @@ class EmailService {
     });
   }
 
-  async sendFeedbackEmail(evaluation, retryCount = 0) {
+  async sendFeedbackEmail(evaluation, feedbackEmail = null, retryCount = 0) {
     if (!evaluation) {
       throw new Error("Evaluation object is required");
     }
@@ -81,79 +81,154 @@ class EmailService {
       throw new Error("No feedback available to send");
     }
 
+    // Determine recipient email - use feedback email if provided, otherwise use user email
+    const recipientEmail = feedbackEmail || email;
+    const emailType = feedbackEmail ? "admin" : "user";
+
     console.log(
-      `Sending ${evaluationType} feedback email to ${email} for ${name} (attempt ${
+      `Sending ${evaluationType} feedback email to ${recipientEmail} (${emailType}) for ${name} (attempt ${
         retryCount + 1
       })`
     );
 
+    // Build robust, responsive (email-safe) HTML using tables and inline styles
+    const systemFont = "-apple-system, Segoe UI, Roboto, Arial, sans-serif";
+    const primary = "#4F46E5";
+    const border = "#E5E7EB";
+    const bg = "#F5F6F8";
+
+    const resumeScoreBlock = hasResumeFeedback
+      ? `
+            <tr>
+              <td style="padding:14px 0;">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid ${border}; border-radius:12px;">
+                  <tr>
+                    <td style="padding:16px 18px;">
+                      <div style="font:600 14px ${systemFont}; color:#111827;">Resume Score</div>
+                      <div style="margin:8px 0 10px; font:700 28px ${systemFont}; color:${primary}; line-height:1;">${resumeScore}/10</div>
+                      <div style="height:8px; background:#EDF2F7; border-radius:6px; overflow:hidden;">
+                        <div style="height:8px; width:${Math.max(
+                          0,
+                          Math.min(100, (Number(resumeScore) / 10) * 100)
+                        )}%; background:${primary};"></div>
+                      </div>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>`
+      : "";
+
+    const portfolioScoreBlock = hasPortfolioFeedback
+      ? `
+            <tr>
+              <td style="padding:4px 0 14px;">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid ${border}; border-radius:12px;">
+                  <tr>
+                    <td style="padding:16px 18px;">
+                      <div style="font:600 14px ${systemFont}; color:#111827;">Portfolio Score</div>
+                      <div style="margin:8px 0 10px; font:700 28px ${systemFont}; color:${primary}; line-height:1;">${portfolioScore}/10</div>
+                      <div style="height:8px; background:#EDF2F7; border-radius:6px; overflow:hidden;">
+                        <div style="height:8px; width:${Math.max(
+                          0,
+                          Math.min(100, (Number(portfolioScore) / 10) * 100)
+                        )}%; background:${primary};"></div>
+                      </div>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>`
+      : "";
+
+    const linkBlock = url
+      ? `
+            <tr>
+              <td style="padding-top:10px;">
+                <a href="${url}" target="_blank" style="display:inline-block; background:${primary}; color:#ffffff; text-decoration:none; font:600 14px ${systemFont}; padding:12px 18px; border-radius:8px;">View ${evaluationType}</a>
+              </td>
+            </tr>`
+      : "";
+
     const htmlContent = `
       <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="utf-8">
-        <title>${evaluationType} Evaluation Feedback</title>
-        <style>
-          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-          .header { background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
-          .score { font-size: 24px; font-weight: bold; color: #007bff; margin: 20px 0; }
-          .feedback { background: #f8f9fa; padding: 15px; border-radius: 5px; margin: 20px 0; }
-          .link { background: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block; margin: 20px 0; }
-          .footer { margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; font-size: 12px; color: #666; }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <div class="header">
-            <h2>${evaluationType} Evaluation Feedback</h2>
-            <p>Hello ${name},</p>
-            <p>Thank you for submitting your ${evaluationType.toLowerCase()} for evaluation. Here's your detailed feedback:</p>
-          </div>
-          
-          <div class="score">
-            Your ${evaluationType} Score: ${score}
-          </div>
-          
-          <div class="feedback">
-            <h3>Detailed Feedback:</h3>
-            <p>${feedback.replace(/\n/g, "<br>")}</p>
-          </div>
-          
-          ${
-            url
-              ? `
-          <p><strong>Your ${evaluationType}:</strong></p>
-          <a href="${url}" class="link" target="_blank">View ${evaluationType}</a>
-          `
-              : ""
-          }
-          
-          <div class="footer">
-            <p>This evaluation was generated using AI technology to provide objective feedback.</p>
-            <p>If you have any questions, please don't hesitate to reach out.</p>
-          </div>
-        </div>
-      </body>
-      </html>
-    `;
+      <html lang="en">
+        <head>
+          <meta charset="utf-8" />
+          <meta name="viewport" content="width=device-width, initial-scale=1" />
+          <title>${evaluationType} Evaluation</title>
+        </head>
+        <body style="margin:0; padding:0; background:${bg};">
+          <div style="display:none; max-height:0; overflow:hidden; opacity:0;">Your ${evaluationType.toLowerCase()} feedback is ready</div>
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${bg};">
+            <tr>
+              <td align="center" style="padding:24px 12px;">
+                <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:600px; background:#ffffff; border-radius:16px; overflow:hidden;">
+                  <tr>
+                    <td style="background:${primary}; padding:20px 24px;">
+                      <div style="font:700 18px ${systemFont}; color:#ffffff;">${evaluationType} Evaluation</div>
+                      <div style="font:400 13px ${systemFont}; color:#E5E7EB; margin-top:6px;">Hello ${name}, here are your results</div>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding:22px 24px;">
+                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                        ${resumeScoreBlock}
+                        ${portfolioScoreBlock}
+                        <tr>
+                          <td style="padding-top:6px;">
+                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid ${border}; border-radius:12px;">
+                              <tr>
+                                <td style="padding:16px 18px;">
+                                  <div style="font:600 15px ${systemFont}; color:#111827; margin-bottom:6px;">Detailed Feedback</div>
+                                  <div style="font:400 14px ${systemFont}; color:#374151; line-height:1.7;">${feedback.replace(
+      /\n/g,
+      "<br>"
+    )}</div>
+                                </td>
+                              </tr>
+                            </table>
+                          </td>
+                        </tr>
+                        ${linkBlock}
+                      </table>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="border-top:1px solid ${border}; background:#FAFAFB; padding:14px 24px;">
+                      <div style="font:400 12px ${systemFont}; color:#6B7280;">This email was generated by AI to provide objective, actionable feedback.</div>
+                      <div style="font:400 12px ${systemFont}; color:#9CA3AF; margin-top:4px;">© ${new Date().getFullYear()} AI Resume Evaluator</div>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+        </body>
+      </html>`;
 
     const textContent = `
-      ${evaluationType} Evaluation Feedback for ${name}
+      ${evaluationType} Evaluation Results
       
-      Your ${evaluationType} Score: ${score}
+      Hello ${name},
       
-      Detailed Feedback:
+      Here's your detailed feedback for your ${evaluationType.toLowerCase()} evaluation:
+      
+      Overall Score: ${score}
+      
+      Detailed Analysis:
       ${feedback}
       
-      ${url ? `Your ${evaluationType}: ${url}` : ""}
+      ${url ? `View your ${evaluationType.toLowerCase()}: ${url}` : ""}
       
-      This evaluation was generated using AI technology to provide objective feedback.
+      This evaluation was generated using advanced AI technology to provide objective feedback.
+      
+      © ${new Date().getFullYear()} AI Resume Evaluator. All rights reserved.
     `;
 
     const mailOptions = {
       from: process.env.MAIL_USER,
-      to: email,
+      to: recipientEmail,
       subject: subject,
       text: textContent,
       html: htmlContent,
@@ -169,132 +244,21 @@ class EmailService {
       // Retry logic for transient errors
       if (retryCount < 2) {
         console.log(
-          `Retrying email send for ${email} (attempt ${retryCount + 2})`
-        );
-        // Wait 2 seconds before retry
-        await new Promise((resolve) => setTimeout(resolve, 2000));
-        return this.sendFeedbackEmail(evaluation, retryCount + 1);
-      }
-
-      throw new Error(
-        `Failed to send email after ${retryCount + 1} attempts: ${
-          error.message
-        }`
-      );
-    }
-  }
-
-  async sendSubmissionConfirmation(evaluation, retryCount = 0) {
-    if (!evaluation) {
-      throw new Error("Evaluation object is required");
-    }
-
-    const { name, email, course } = evaluation;
-
-    if (!name || !email) {
-      throw new Error("Name and email are required for sending confirmation");
-    }
-
-    console.log(
-      `Sending submission confirmation email to ${email} for ${name} (attempt ${
-        retryCount + 1
-      })`
-    );
-
-    const htmlContent = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="utf-8">
-        <title>Submission Confirmation</title>
-        <style>
-          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-          .header { background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
-          .success { background: #d4edda; color: #155724; padding: 15px; border-radius: 5px; margin: 20px 0; }
-          .footer { margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; font-size: 12px; color: #666; }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <div class="header">
-            <h2>Submission Confirmation</h2>
-            <p>Hello ${name},</p>
-            <p>Thank you for submitting your evaluation request!</p>
-          </div>
-          
-          <div class="success">
-            <h3>✅ Submission Received</h3>
-            <p><strong>Course:</strong> ${course}</p>
-            <p><strong>Submission Date:</strong> ${new Date().toLocaleDateString()}</p>
-          </div>
-          
-          <p>We have successfully received your submission and our AI system is processing it. You will receive detailed feedback via email once the evaluation is complete.</p>
-          
-          <p><strong>What happens next?</strong></p>
-          <ul>
-            <li>Our AI system will analyze your submission</li>
-            <li>You'll receive comprehensive feedback and scoring</li>
-            <li>The evaluation will be available in your dashboard</li>
-          </ul>
-          
-          <div class="footer">
-            <p>This is an automated confirmation. Please do not reply to this email.</p>
-            <p>If you have any questions, please contact our support team.</p>
-          </div>
-        </div>
-      </body>
-      </html>
-    `;
-
-    const textContent = `
-      Submission Confirmation for ${name}
-      
-      Thank you for submitting your evaluation request!
-      
-      ✅ Submission Received
-      Course: ${course}
-      Submission Date: ${new Date().toLocaleDateString()}
-      
-      We have successfully received your submission and our AI system is processing it. You will receive detailed feedback via email once the evaluation is complete.
-      
-      What happens next?
-      - Our AI system will analyze your submission
-      - You'll receive comprehensive feedback and scoring
-      - The evaluation will be available in your dashboard
-      
-      This is an automated confirmation. Please do not reply to this email.
-    `;
-
-    const mailOptions = {
-      from: process.env.MAIL_USER,
-      to: email,
-      subject: `Submission Confirmation - ${course} Evaluation`,
-      text: textContent,
-      html: htmlContent,
-    };
-
-    try {
-      const result = await this.transporter.sendMail(mailOptions);
-      console.log("Confirmation email sent successfully:", result.messageId);
-      return { success: true, messageId: result.messageId };
-    } catch (error) {
-      console.error("Confirmation email send error:", error);
-
-      // Retry logic for transient errors
-      if (retryCount < 2) {
-        console.log(
-          `Retrying confirmation email send for ${email} (attempt ${
+          `Retrying email send for ${recipientEmail} (attempt ${
             retryCount + 2
           })`
         );
         // Wait 2 seconds before retry
         await new Promise((resolve) => setTimeout(resolve, 2000));
-        return this.sendSubmissionConfirmation(evaluation, retryCount + 1);
+        return this.sendFeedbackEmail(
+          evaluation,
+          feedbackEmail,
+          retryCount + 1
+        );
       }
 
       throw new Error(
-        `Failed to send confirmation email after ${retryCount + 1} attempts: ${
+        `Failed to send email after ${retryCount + 1} attempts: ${
           error.message
         }`
       );

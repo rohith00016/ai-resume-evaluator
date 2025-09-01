@@ -20,6 +20,15 @@ const LearnerSchema = new mongoose.Schema(
         "Please enter a valid email address",
       ],
     },
+    feedbackEmail: {
+      type: String,
+      trim: true,
+      lowercase: true,
+      match: [
+        /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/,
+        "Please enter a valid email address",
+      ],
+    },
     course: {
       type: String,
       required: [true, "Course is required"],
@@ -33,12 +42,7 @@ const LearnerSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
-    resumePublicId: {
-      type: String,
-    },
-    resumeUrl: {
-      type: String,
-    },
+    // Skipped Cloudinary storage; keeping schema minimal
     resumeFeedback: {
       type: String,
     },

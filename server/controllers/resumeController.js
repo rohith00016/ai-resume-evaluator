@@ -1,5 +1,4 @@
 const pdfParse = require("pdf-parse");
-const cloudinary = require("../config/cloudinary");
 const aiService = require("../services/aiService");
 const emailService = require("../services/emailService");
 const Learner = require("../models/Learner");
@@ -7,7 +6,7 @@ const Learner = require("../models/Learner");
 class ResumeController {
   async createLearner(req, res, next) {
     try {
-      const { name, course, portfolioUrl } = req.body;
+      const { name, course, portfolioUrl, feedbackEmail } = req.body;
       const email = req.user.email; // Use authenticated user's email
 
       if (!course) {
@@ -21,7 +20,7 @@ class ResumeController {
       let portfolioResult = null;
       let uploadResult = null;
 
-      // Resume Evaluation if file present
+      // Resume Evaluation if file present (skip Cloudinary upload)
       if (req.file) {
         const resumeData = await pdfParse(req.file.buffer);
         const resumeText = resumeData.text;
@@ -30,21 +29,8 @@ class ResumeController {
           throw new Error("Could not extract text from PDF.");
         }
 
-        uploadResult = await new Promise((resolve, reject) => {
-          const uploadStream = cloudinary.uploader.upload_stream(
-            {
-              resource_type: "raw",
-              format: "pdf",
-              folder: "resumes",
-              public_id: `${Date.now()}-${name.replace(/\s+/g, "-")}`,
-            },
-            (error, result) => {
-              if (error) reject(error);
-              else resolve(result);
-            }
-          );
-          uploadStream.end(req.file.buffer);
-        });
+        // Skipped upload to Cloudinary intentionally
+        uploadResult = null;
 
         const { feedback, score } = await aiService.evaluateResume(
           resumeText,
@@ -75,8 +61,6 @@ class ResumeController {
         {
           $setOnInsert: { name, submittedBy },
           ...(resumeResult && {
-            resumeUrl: uploadResult.secure_url,
-            resumePublicId: uploadResult.public_id,
             resumeFeedback: resumeResult.feedback,
             resumeScore: resumeResult.score,
           }),
@@ -85,26 +69,14 @@ class ResumeController {
             portfolioFeedback: portfolioResult.feedback,
             portfolioScore: portfolioResult.score,
           }),
+          ...(feedbackEmail && { feedbackEmail }),
         },
         { upsert: true, new: true }
       );
 
-      // Send confirmation email to user
+      // Send feedback email after evaluation
       try {
-        await emailService.sendSubmissionConfirmation({
-          name,
-          email,
-          course,
-        });
-        console.log(`Confirmation email sent to ${email} for ${name}`);
-      } catch (emailError) {
-        console.error("Failed to send confirmation email:", emailError);
-        // Don't fail the request if email fails
-      }
-
-      // Automatically send feedback email after evaluation
-      try {
-        console.log("Preparing to send automatic feedback email...");
+        console.log("Preparing to send feedback email...");
 
         // Prepare evaluation data for email
         const evaluationData = {
@@ -114,7 +86,6 @@ class ResumeController {
           ...(resumeResult && {
             resumeFeedback: resumeResult.feedback,
             resumeScore: resumeResult.score,
-            resumeUrl: uploadResult.secure_url,
           }),
           ...(portfolioResult && {
             portfolioFeedback: portfolioResult.feedback,
@@ -130,9 +101,12 @@ class ResumeController {
           hasPortfolioFeedback: !!evaluationData.portfolioFeedback,
         });
 
+        // Use feedbackEmail if provided, otherwise use user's email
+        const recipientEmail = feedbackEmail || email;
+
         // Send feedback email
-        await emailService.sendFeedbackEmail(evaluationData);
-        console.log(`Feedback email sent to ${email} for ${name}`);
+        await emailService.sendFeedbackEmail(evaluationData, recipientEmail);
+        console.log(`Feedback email sent to ${recipientEmail} for ${name}`);
 
         // Update the learner record to mark email as sent
         await Learner.findByIdAndUpdate(learner._id, {
@@ -154,7 +128,7 @@ class ResumeController {
       const updatedLearner = await Learner.findById(learner._id)
         .populate("submittedBy", "username email")
         .select(
-          "_id name email course portfolioUrl portfolioFeedback portfolioScore resumeFeedback resumeScore resumeUrl createdAt emailSent emailSentAt submittedBy"
+          "_id name email course portfolioUrl portfolioFeedback portfolioScore resumeFeedback resumeScore createdAt emailSent emailSentAt submittedBy feedbackEmail"
         );
 
       res.status(201).json({
@@ -167,7 +141,6 @@ class ResumeController {
           ...(resumeResult && {
             resumeFeedback: resumeResult.feedback,
             resumeScore: resumeResult.score,
-            resumeUrl: uploadResult.secure_url,
           }),
           ...(portfolioResult && {
             portfolioFeedback: portfolioResult.feedback,
@@ -177,6 +150,7 @@ class ResumeController {
           emailSent: updatedLearner.emailSent,
           emailSentAt: updatedLearner.emailSentAt,
           createdAt: updatedLearner.createdAt,
+          feedbackEmail: updatedLearner.feedbackEmail,
         },
       });
     } catch (error) {
@@ -199,7 +173,7 @@ class ResumeController {
       const learners = await Learner.find(query)
         .populate("submittedBy", "username email")
         .select(
-          "_id name email course portfolioUrl portfolioFeedback portfolioScore resumeFeedback resumeScore resumeUrl createdAt emailSent emailSentAt submittedBy"
+          "_id name email course portfolioUrl portfolioFeedback portfolioScore resumeFeedback resumeScore createdAt emailSent emailSentAt submittedBy"
         )
         .sort({ createdAt: -1 });
 
@@ -225,7 +199,7 @@ class ResumeController {
       const learner = await Learner.findOne(query)
         .populate("submittedBy", "username email")
         .select(
-          "_id name email course portfolioUrl portfolioFeedback portfolioScore resumeFeedback resumeScore resumeUrl createdAt emailSent emailSentAt submittedBy"
+          "_id name email course portfolioUrl portfolioFeedback portfolioScore resumeFeedback resumeScore createdAt emailSent emailSentAt submittedBy"
         );
 
       if (!learner) {
@@ -250,7 +224,7 @@ class ResumeController {
 
   async createResumeSubmission(req, res, next) {
     try {
-      const { name, course } = req.body;
+      const { name, course, feedbackEmail } = req.body;
       const email = req.user.email; // Use authenticated user's email
 
       if (!course || !req.file) {
@@ -270,22 +244,7 @@ class ResumeController {
         throw new Error("Could not extract text from PDF.");
       }
 
-      // Upload to Cloudinary
-      const uploadResult = await new Promise((resolve, reject) => {
-        const uploadStream = cloudinary.uploader.upload_stream(
-          {
-            resource_type: "raw",
-            format: "pdf",
-            folder: "resumes",
-            public_id: `${Date.now()}-${name.replace(/\s+/g, "-")}`,
-          },
-          (error, result) => {
-            if (error) reject(error);
-            else resolve(result);
-          }
-        );
-        uploadStream.end(req.file.buffer);
-      });
+      // Skip Cloudinary upload intentionally
 
       // Generate AI feedback for resume
       const { feedback, score } = await aiService.evaluateResume(
@@ -299,28 +258,14 @@ class ResumeController {
         email,
         course,
         submittedBy,
-        resumeUrl: uploadResult.secure_url,
-        resumePublicId: uploadResult.public_id,
         resumeFeedback: feedback,
         resumeScore: score,
+        ...(feedbackEmail && { feedbackEmail }),
       });
 
       await learner.save();
 
-      // Send confirmation email to user
-      try {
-        await emailService.sendSubmissionConfirmation({
-          name,
-          email,
-          course,
-        });
-        console.log(`Confirmation email sent to ${email} for ${name}`);
-      } catch (emailError) {
-        console.error("Failed to send confirmation email:", emailError);
-        // Don't fail the request if email fails
-      }
-
-      // Automatically send feedback email after evaluation
+      // Send feedback email after evaluation
       try {
         console.log("Preparing to send automatic resume feedback email...");
 
@@ -330,7 +275,6 @@ class ResumeController {
           course,
           resumeFeedback: feedback,
           resumeScore: score,
-          resumeUrl: uploadResult.secure_url,
         };
 
         console.log("Resume evaluation data prepared:", {
@@ -339,9 +283,14 @@ class ResumeController {
           hasResumeFeedback: !!evaluationData.resumeFeedback,
         });
 
+        // Use feedbackEmail if provided, otherwise use user's email
+        const recipientEmail = feedbackEmail || email;
+
         // Send feedback email
-        await emailService.sendFeedbackEmail(evaluationData);
-        console.log(`Resume feedback email sent to ${email} for ${name}`);
+        await emailService.sendFeedbackEmail(evaluationData, recipientEmail);
+        console.log(
+          `Resume feedback email sent to ${recipientEmail} for ${name}`
+        );
 
         // Update the learner record to mark email as sent
         await Learner.findByIdAndUpdate(learner._id, {
@@ -366,7 +315,7 @@ class ResumeController {
       const updatedLearner = await Learner.findById(learner._id)
         .populate("submittedBy", "username email")
         .select(
-          "_id name email course resumeUrl resumeFeedback resumeScore createdAt emailSent emailSentAt submittedBy"
+          "_id name email course resumeFeedback resumeScore createdAt emailSent emailSentAt submittedBy feedbackEmail"
         );
 
       res.status(201).json({
@@ -378,10 +327,10 @@ class ResumeController {
           course: updatedLearner.course,
           resumeFeedback: feedback,
           resumeScore: score,
-          resumeUrl: uploadResult.secure_url,
           emailSent: updatedLearner.emailSent,
           emailSentAt: updatedLearner.emailSentAt,
           createdAt: updatedLearner.createdAt,
+          feedbackEmail: updatedLearner.feedbackEmail,
         },
       });
     } catch (error) {
@@ -391,7 +340,7 @@ class ResumeController {
 
   async createPortfolioSubmission(req, res, next) {
     try {
-      const { name, course, portfolioUrl } = req.body;
+      const { name, course, portfolioUrl, feedbackEmail } = req.body;
       const email = req.user.email; // Use authenticated user's email
 
       if (!course || !portfolioUrl) {
@@ -424,24 +373,12 @@ class ResumeController {
         portfolioUrl,
         portfolioFeedback: feedback,
         portfolioScore: score,
+        ...(feedbackEmail && { feedbackEmail }),
       });
 
       await learner.save();
 
-      // Send confirmation email to user
-      try {
-        await emailService.sendSubmissionConfirmation({
-          name,
-          email,
-          course,
-        });
-        console.log(`Confirmation email sent to ${email} for ${name}`);
-      } catch (emailError) {
-        console.error("Failed to send confirmation email:", emailError);
-        // Don't fail the request if email fails
-      }
-
-      // Automatically send feedback email after evaluation
+      // Send feedback email after evaluation
       try {
         console.log("Preparing to send automatic portfolio feedback email...");
 
@@ -460,9 +397,14 @@ class ResumeController {
           hasPortfolioFeedback: !!evaluationData.portfolioFeedback,
         });
 
+        // Use feedbackEmail if provided, otherwise use user's email
+        const recipientEmail = feedbackEmail || email;
+
         // Send feedback email
-        await emailService.sendFeedbackEmail(evaluationData);
-        console.log(`Portfolio feedback email sent to ${email} for ${name}`);
+        await emailService.sendFeedbackEmail(evaluationData, recipientEmail);
+        console.log(
+          `Portfolio feedback email sent to ${recipientEmail} for ${name}`
+        );
 
         // Update the learner record to mark email as sent
         await Learner.findByIdAndUpdate(learner._id, {
@@ -487,7 +429,7 @@ class ResumeController {
       const updatedLearner = await Learner.findById(learner._id)
         .populate("submittedBy", "username email")
         .select(
-          "_id name email course portfolioUrl portfolioFeedback portfolioScore createdAt emailSent emailSentAt submittedBy"
+          "_id name email course portfolioUrl portfolioFeedback portfolioScore createdAt emailSent emailSentAt submittedBy feedbackEmail"
         );
 
       res.status(201).json({
@@ -503,6 +445,7 @@ class ResumeController {
           emailSent: updatedLearner.emailSent,
           emailSentAt: updatedLearner.emailSentAt,
           createdAt: updatedLearner.createdAt,
+          feedbackEmail: updatedLearner.feedbackEmail,
         },
       });
     } catch (error) {
@@ -520,8 +463,11 @@ class ResumeController {
         return res.status(404).json({ error: "Evaluation not found" });
       }
 
+      // Use feedbackEmail from evaluation if available, otherwise use user's email
+      const recipientEmail = evaluation.feedbackEmail || evaluation.email;
+
       // Send email using the emailService instance
-      await emailService.sendFeedbackEmail(evaluation);
+      await emailService.sendFeedbackEmail(evaluation, recipientEmail);
 
       // Update evaluation status
       evaluation.emailSent = true;

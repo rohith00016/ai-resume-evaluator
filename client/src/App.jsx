@@ -16,6 +16,7 @@ import FeedbackDetail from "./components/FeedbackDetail";
 import Manage from "./components/Manage";
 import ProtectedRoute from "./components/ProtectedRoute";
 import "./index.css";
+import { Toaster } from "react-hot-toast";
 
 function App() {
   return (
@@ -82,6 +83,27 @@ function App() {
               />
             </Routes>
           </main>
+
+          <Toaster
+            position="top-center"
+            toastOptions={{
+              duration: 4000,
+              style: {
+                background: "#111827",
+                color: "#F9FAFB",
+                border: "1px solid #374151",
+                padding: "10px 14px",
+              },
+              success: {
+                iconTheme: { primary: "#10B981", secondary: "#ffffff" },
+                style: { borderColor: "#10B981" },
+              },
+              error: {
+                iconTheme: { primary: "#EF4444", secondary: "#ffffff" },
+                style: { borderColor: "#EF4444" },
+              },
+            }}
+          />
         </div>
       </Router>
     </Provider>

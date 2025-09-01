@@ -47,7 +47,7 @@ const SubmissionCard = ({
   return (
     <div className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow">
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-        <div className="flex-1">
+        <div className="flex-1 max-w-fit">
           <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-3">
             <h3 className="text-lg font-semibold text-gray-900">
               {evaluation.name}

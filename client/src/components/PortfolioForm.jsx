@@ -1,18 +1,22 @@
 import { useState } from "react";
 import { useSelector } from "react-redux";
 import axios from "axios";
+import toast from "react-hot-toast";
 
 const PortfolioForm = () => {
   const [formData, setFormData] = useState({
     name: "",
     course: "",
     portfolioUrl: "",
+    feedbackEmail: "",
   });
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
   const [feedback, setFeedback] = useState(null);
 
-  const { token } = useSelector((state) => state.auth);
+  const { token, role } = useSelector((state) => ({
+    token: state.auth.token,
+    role: state.auth.user?.role,
+  }));
 
   const handleInputChange = (e) => {
     setFormData({
@@ -34,15 +38,19 @@ const PortfolioForm = () => {
     e.preventDefault();
 
     if (!validateUrl(formData.portfolioUrl)) {
-      setError("Please enter a valid URL");
+      toast.error("Please enter a valid URL");
+      return;
+    }
+
+    if (role === "admin" && !formData.feedbackEmail) {
+      toast.error("Feedback email is required for admin users");
       return;
     }
 
     setLoading(true);
-    setError(null);
     setFeedback(null);
 
-    try {
+    const doSubmit = async () => {
       const response = await axios.post(
         `${import.meta.env.VITE_API_URL}/portfolios`,
         formData,
@@ -53,11 +61,25 @@ const PortfolioForm = () => {
           },
         }
       );
+      return response;
+    };
+
+    try {
+      const response = await toast.promise(doSubmit(), {
+        loading: "Analyzing your portfolio...",
+        success: "Feedback emailed successfully",
+        error: (err) =>
+          err.response?.data?.error || "Failed to submit portfolio",
+      });
 
       setFeedback(response.data.learner);
-      setFormData({ name: "", course: "", portfolioUrl: "" });
-    } catch (error) {
-      setError(error.response?.data?.error || "Failed to submit portfolio");
+      setFormData({
+        name: "",
+        course: "",
+        portfolioUrl: "",
+        feedbackEmail: "",
+      });
+    } catch (_) {
     } finally {
       setLoading(false);
     }
@@ -69,12 +91,6 @@ const PortfolioForm = () => {
         <h1 className="text-2xl font-bold text-gray-900 mb-6">
           Submit Portfolio for Evaluation
         </h1>
-
-        {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-6">
-            {error}
-          </div>
-        )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -142,6 +158,31 @@ const PortfolioForm = () => {
             </p>
           </div>
 
+          {role === "admin" && (
+            <div>
+              <label
+                htmlFor="feedbackEmail"
+                className="block text-sm font-medium text-gray-700 mb-2"
+              >
+                Feedback Email Address *
+              </label>
+              <input
+                type="email"
+                id="feedbackEmail"
+                name="feedbackEmail"
+                value={formData.feedbackEmail}
+                onChange={handleInputChange}
+                required
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                placeholder="Enter email address for feedback"
+              />
+              <p className="mt-1 text-sm text-gray-500">
+                As an admin, you must provide an email address where feedback
+                will be sent
+              </p>
+            </div>
+          )}
+
           <button
             type="submit"
             disabled={loading}
@@ -164,7 +205,6 @@ const PortfolioForm = () => {
             <h2 className="text-xl font-semibold text-purple-900 mb-4">
               AI Evaluation Results
             </h2>
-
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="bg-white rounded-lg p-4 border border-purple-200">
                 <h3 className="text-lg font-medium text-purple-800 mb-2">
@@ -186,7 +226,6 @@ const PortfolioForm = () => {
                   </div>
                 </div>
               </div>
-
               <div className="bg-white rounded-lg p-4 border border-purple-200">
                 <h3 className="text-lg font-medium text-purple-800 mb-2">
                   Portfolio URL
@@ -201,7 +240,6 @@ const PortfolioForm = () => {
                 </a>
               </div>
             </div>
-
             <div className="mt-6">
               <h3 className="text-lg font-medium text-purple-800 mb-3">
                 Detailed Feedback
@@ -212,7 +250,6 @@ const PortfolioForm = () => {
                 </div>
               </div>
             </div>
-
             <div className="mt-4 text-sm text-purple-700">
               <p>
                 <strong>Submitted:</strong>{" "}

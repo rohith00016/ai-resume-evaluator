@@ -16,7 +16,7 @@ Authorization: Bearer <your_jwt_token>
 ### User Roles
 
 - **user**: Can submit evaluations and view their own submissions
-- **admin**: Can view all submissions and send feedback emails
+- **admin**: Can view all submissions, send feedback emails, and receive feedback emails at their admin email address
 
 ## Endpoints
 
@@ -31,6 +31,7 @@ Authorization: Bearer <your_jwt_token>
   - `email` (string, required): Valid email address
   - `password` (string, required): Password (minimum 6 characters)
   - `adminCode` (string, optional): Admin registration code to create admin account
+  - `feedbackEmail` (string, optional): Email address for receiving feedback (if not provided, uses user's registered email)
 - **Success Response** (201):
   ```json
   {
@@ -38,6 +39,7 @@ Authorization: Bearer <your_jwt_token>
     "username": "johndoe",
     "email": "john@example.com",
     "role": "user",
+    "feedbackEmail": "admin@example.com",
     "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
   }
   ```
@@ -61,6 +63,7 @@ Authorization: Bearer <your_jwt_token>
     "username": "johndoe",
     "email": "john@example.com",
     "role": "user",
+    "feedbackEmail": "admin@example.com",
     "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
   }
   ```
@@ -80,6 +83,7 @@ Authorization: Bearer <your_jwt_token>
     "username": "johndoe",
     "email": "john@example.com",
     "role": "user",
+    "feedbackEmail": "admin@example.com",
     "createdAt": "2024-01-01T00:00:00.000Z",
     "updatedAt": "2024-01-01T00:00:00.000Z"
   }
@@ -102,6 +106,7 @@ Authorization: Bearer <your_jwt_token>
       "username": "johndoe",
       "email": "john@example.com",
       "role": "user",
+      "adminEmail": "admin@example.com",
       "createdAt": "2024-01-01T00:00:00.000Z",
       "updatedAt": "2024-01-01T00:00:00.000Z"
     }
@@ -126,7 +131,8 @@ Authorization: Bearer <your_jwt_token>
       "_id": "507f1f77bcf86cd799439011",
       "username": "johndoe",
       "email": "john@example.com",
-      "role": "admin"
+      "role": "admin",
+      "feedbackEmail": "admin@example.com"
     }
   }
   ```
@@ -157,9 +163,9 @@ Authorization: Bearer <your_jwt_token>
 - **Content-Type**: `multipart/form-data`
 - **Request Body**:
   - `name` (string, required): User's full name (2-40 characters, alphabetic only)
-  - `email` (string, required): Valid email address
   - `course` (string, required): Course type ("MERN", "UXUI", or "Devops")
   - `resume` (file, required): PDF file (max 10MB)
+  - `feedbackEmail` (string, optional): Email address for receiving feedback
 - **Success Response** (201):
   ```json
   {
@@ -190,9 +196,9 @@ Authorization: Bearer <your_jwt_token>
 - **Content-Type**: `application/json`
 - **Request Body**:
   - `name` (string, required): User's full name (2-40 characters, alphabetic only)
-  - `email` (string, required): Valid email address
   - `course` (string, required): Course type ("MERN", "UXUI", or "Devops")
   - `portfolioUrl` (string, required): Valid HTTP/HTTPS URL of deployed portfolio
+  - `feedbackEmail` (string, optional): Email address for receiving feedback
 - **Success Response** (201):
   ```json
   {
@@ -221,10 +227,10 @@ Authorization: Bearer <your_jwt_token>
 - **Content-Type**: `multipart/form-data`
 - **Request Body**:
   - `name` (string, required): User's full name (2-40 characters, alphabetic only)
-  - `email` (string, required): Valid email address
   - `course` (string, required): Course type ("MERN", "UXUI", or "Devops")
   - `portfolioUrl` (string, optional): Deployed portfolio URL for enhanced evaluation
   - `resume` (file, required): PDF file (max 10MB)
+  - `feedbackEmail` (string, optional): Email address for receiving feedback
 - **Success Response** (201): Same as above with combined feedback
 - **Error Responses**: Same as above
 
@@ -317,6 +323,7 @@ Authorization: Bearer <your_jwt_token>
   - `400`: Email already sent or validation errors
   - `404`: Evaluation not found
   - `500`: Email delivery failed
+- **Note**: If a feedback email is provided, feedback emails are sent to that address instead of the user's registered email address
 
 ## Error Response Format
 
@@ -339,6 +346,13 @@ Authorization: Bearer <your_jwt_token>
 - **MERN Stack Detection**: Automatically identifies MongoDB, Express, React, Node.js technologies
 - **Portfolio Scoring**: Evaluates navigation, skills, projects, social links, and technical features
 - **Enhanced AI Feedback**: Combines resume and portfolio analysis for comprehensive evaluation
+
+## Feedback Email Functionality
+
+- **Feedback Email Field**: Users can optionally provide a feedback email address during submission
+- **Email Routing**: When a feedback email is provided, feedback emails are sent to that address instead of the user's registered email
+- **Manual Email Sending**: When manually sending feedback emails, they are sent to the feedback email if available, otherwise to the user's registered email
+- **Default Behavior**: If no feedback email is provided, feedback is sent to the user's registered email address
 
 ## Rate Limits
 
