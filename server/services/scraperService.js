@@ -76,8 +76,9 @@ const scrapeWebsite = async (url) => {
       $("a").each((_, el) => {
         const href = $(el).attr("href");
         const text = $(el).text().trim().replace(/\s+/g, " ");
+        const target = $(el).attr("target");
         const absUrl = getAbsoluteUrl(currentUrl, href);
-        if (absUrl && text) links.push({ href: absUrl, text });
+        if (absUrl && text) links.push({ href: absUrl, text, target });
       });
 
       const images = [];

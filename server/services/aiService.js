@@ -300,7 +300,12 @@ Focus on helping the candidate improve their resume for better job market succes
               .map((item) => `${item.tag}: ${item.text}`)
               .join("\n");
             const links = page.content.links
-              .map((link) => `Link: ${link.text} (${link.href})`)
+              .map(
+                (link) =>
+                  `Link: ${link.text} (${link.href}) [Target: ${
+                    link.target || "none"
+                  }]`
+              )
               .join("\n");
             const images = page.content.images
               .map((img) => `Image: ${img.src} (Alt: ${img.alt})`)
@@ -327,10 +332,30 @@ ${portfolioUrl}
 SCRAPED CONTENT:
 ${scrapedContent}
 
+IMPORTANT: You are receiving raw scraped data. You need to analyze this data yourself to:
+
+1. **Navigation Analysis**: Look for navigation sections, routes, and structure
+2. **Skills Detection**: Identify technical skills mentioned in the content
+3. **Project Analysis**: Find project sections, GitHub links, demo links
+4. **Social Profiles**: Detect LinkedIn, GitHub, and other social links
+5. **Resume Detection**: Look for resume/CV links and document downloads
+6. **Technical Features**: Identify responsive design, performance, SEO mentions
+7. **Link Behavior**: Check which links have target="_blank" and categorize as external vs internal
+
+LINK ANALYSIS GUIDANCE:
+- Look at the [Target: value] for each link in the scraped content
+- Links with [Target: _blank] are correctly configured for external links
+- Links with [Target: none] or missing target attribute need analysis:
+  * EXTERNAL links (different domain) MUST have target="_blank"
+  * INTERNAL links (same domain navigation) can open in same tab
+- External links include: GitHub, LinkedIn, deployed projects, PDFs, any different domain
+- Internal links include: About, Contact, Home, Projects sections within the same portfolio
+
 PORTFOLIO EVALUATION CRITERIA:
 
 1. NAVIGATION AND USER EXPERIENCE (25 points):
-- All links must open in new tabs/pages (target="_blank")
+- External links (different domains) must open in new tabs/pages (target="_blank")
+- Internal navigation links can open in same tab for better UX
 - Responsive design across different screen sizes
 - Clean and professional UI/UX
 - Fast loading times
@@ -396,24 +421,37 @@ RED FLAGS (Deductions):
 - Extremely slow loading times
 - Unprofessional content or presentation
 - Missing critical information
-- Links that don't open in new tabs
+- External links that don't open in new tabs
 - Placeholder or dummy content
 - Copyright violations or plagiarized content
 
 EVALUATION FORMAT:
 Overall Score: X/10
 
+PORTFOLIO ANALYSIS SUMMARY:
+- Navigation Structure: [Describe what you found - routes, sections, etc.]
+- Skills Identified: [List technical skills found in content]
+- Projects Found: [Describe project sections, GitHub links, demo links]
+- Social Profiles: [List social platforms and link behavior]
+- Resume/CV: [Describe resume links and document types]
+- Technical Features: [List responsive design, performance, SEO mentions]
+- Link Behavior: [Summary of external vs internal links and target="_blank" usage]
+
 Strengths:
 - Bullet points listing 2-3 strong areas based on the criteria above
 
 Areas for Improvement:
 - Bullet points with 3–5 specific improvement suggestions based on missing criteria
+- If external links are missing target="_blank", specifically mention which types of links need this attribute
+- Note: Internal navigation links can open in same tab
 
 Missing Elements:
 - List anything critical that’s missing (e.g., no contact form, no project explanations)
 
 Recommendations:
 - Bullet points with clear next steps to improve this portfolio based on the evaluation criteria
+- For external link improvements, specify exactly which links need target="_blank" (e.g., "Update footer GitHub and LinkedIn links to use target='_blank'")
+- Internal navigation links are fine to open in same tab
 
 Please evaluate thoroughly against these specific criteria and return only the formatted feedback.
 `;
