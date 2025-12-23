@@ -1,7 +1,16 @@
-const multer = require('multer');
+const multer = require("multer");
+const logger = require("../utils/logger");
 
 const errorHandler = (err, req, res, next) => {
-  console.error("Error:", err);
+  // Log error with request context
+  logger.error("Request error:", {
+    requestId: req.id,
+    method: req.method,
+    path: req.path,
+    error: err.message,
+    stack: err.stack,
+    ip: req.ip,
+  });
 
   // Multer errors
   if (err instanceof multer.MulterError) {
@@ -57,12 +66,13 @@ const errorHandler = (err, req, res, next) => {
   }
 
   // Default error
-  res.status(500).json({
+  res.status(err.statusCode || 500).json({
     error: "Internal server error",
     message:
       process.env.NODE_ENV === "development"
         ? err.message
         : "Something went wrong",
+    ...(process.env.NODE_ENV === "development" && { stack: err.stack }),
   });
 };
 

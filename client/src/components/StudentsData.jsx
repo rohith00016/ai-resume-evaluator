@@ -4,6 +4,7 @@ import { fetchEvaluations, sendFeedbackEmail } from "../features/resumeSlice";
 import { AlertCircle, RefreshCw, X } from "lucide-react";
 import NavBar from "./NavBar";
 import SubmissionCard from "./SubmissionCard";
+import { FormattedFeedback } from "../utils/formatFeedback";
 
 const StudentsData = () => {
   const dispatch = useDispatch();
@@ -20,8 +21,9 @@ const StudentsData = () => {
     try {
       setSendingEmailId(evaluationId);
       await dispatch(sendFeedbackEmail(evaluationId)).unwrap();
+      // Success toast is handled in the Redux slice
     } catch (error) {
-      console.error("Failed to send email:", error);
+      // Error toast is handled in the Redux slice
     } finally {
       setSendingEmailId(null);
     }
@@ -217,9 +219,7 @@ const StudentsData = () => {
                         Resume Feedback
                       </h4>
                       <div className="bg-white rounded-md p-4 border">
-                        <p className="text-gray-700 whitespace-pre-wrap leading-relaxed">
-                          {selectedEvaluation.resumeFeedback}
-                        </p>
+                        <FormattedFeedback feedback={selectedEvaluation.resumeFeedback} />
                       </div>
                     </div>
                   )}
@@ -231,9 +231,7 @@ const StudentsData = () => {
                         Portfolio Feedback
                       </h4>
                       <div className="bg-white rounded-md p-4 border">
-                        <p className="text-gray-700 whitespace-pre-wrap leading-relaxed">
-                          {selectedEvaluation.portfolioFeedback}
-                        </p>
+                        <FormattedFeedback feedback={selectedEvaluation.portfolioFeedback} />
                       </div>
                     </div>
                   )}

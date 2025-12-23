@@ -2,6 +2,8 @@ import { useState } from "react";
 import { useSelector } from "react-redux";
 import axios from "axios";
 import toast from "react-hot-toast";
+import { showErrorToast } from "../utils/errorHandler";
+import { FormattedFeedback } from "../utils/formatFeedback";
 
 const ResumeForm = () => {
   const [formData, setFormData] = useState({
@@ -85,29 +87,33 @@ const ResumeForm = () => {
     };
 
     try {
-      const response = await toast.promise(doSubmit(), {
-        loading: "Evaluating your resume...",
-        success: "Feedback emailed successfully",
-        error: (err) => err.response?.data?.error || "Failed to submit resume",
-      });
+      const loadingToast = toast.loading("Evaluating your resume...");
+      const response = await doSubmit();
+      toast.dismiss(loadingToast);
+      // Success handled silently - no toast
 
       setFeedback(response.data.learner);
       setFormData({ name: "", course: "", feedbackEmail: "" });
       setResumeFile(null);
       const fileInput = document.getElementById("resume");
       if (fileInput) fileInput.value = "";
-    } catch (_) {
+    } catch (error) {
+      showErrorToast(error, "Failed to submit resume");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-      <div className="bg-white shadow rounded-lg p-6">
-        <h1 className="text-2xl font-bold text-gray-900 mb-6">
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {/* Form Section */}
+      <div className="bg-white shadow-lg rounded-xl p-8 mb-8">
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">
           Submit Resume for Evaluation
         </h1>
+        <p className="text-gray-600 mb-6">
+          Upload your resume to receive AI-powered feedback and scoring
+        </p>
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -214,69 +220,67 @@ const ResumeForm = () => {
             )}
           </button>
         </form>
+      </div>
 
-        {/* AI Feedback Display */}
-        {feedback && (
-          <div className="mt-8 bg-green-50 border border-green-200 rounded-lg p-6">
-            <h2 className="text-xl font-semibold text-green-900 mb-4">
-              AI Evaluation Results
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="bg-white rounded-lg p-4 border border-green-200">
-                <h3 className="text-lg font-medium text-green-800 mb-2">
-                  Resume Score
-                </h3>
-                <div className="flex items-center">
-                  <div className="text-3xl font-bold text-green-600 mr-3">
-                    {feedback.resumeScore}/10
-                  </div>
-                  <div className="flex-1">
-                    <div className="w-full bg-gray-200 rounded-full h-3">
-                      <div
-                        className="bg-green-600 h-3 rounded-full transition-all duration-500"
-                        style={{
-                          width: `${(feedback.resumeScore / 10) * 100}%`,
-                        }}
-                      ></div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              {feedback.resumeUrl && (
-                <div className="bg-white rounded-lg p-4 border border-green-200">
-                  <h3 className="text-lg font-medium text-green-800 mb-2">
-                    Resume URL
-                  </h3>
-                  <a
-                    href={feedback.resumeUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-blue-600 hover:text-blue-800 underline break-all"
-                  >
-                    View Resume
-                  </a>
-                </div>
-              )}
-            </div>
-            <div className="mt-6">
-              <h3 className="text-lg font-medium text-green-800 mb-3">
-                Detailed Feedback
+      {/* Results Section */}
+      {feedback && (
+        <div className="bg-white border-2 border-gray-200 rounded-xl shadow-lg p-8">
+          <h2 className="text-2xl font-semibold text-gray-900 mb-6">
+            AI Evaluation Results
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            <div className="bg-white rounded-lg p-5 border border-gray-200 shadow-sm">
+              <h3 className="text-lg font-medium text-gray-800 mb-3">
+                Resume Score
               </h3>
-              <div className="bg-white rounded-lg p-4 border border-green-200">
-                <div className="prose prose-sm max-w-none text-gray-700 whitespace-pre-wrap">
-                  {feedback.resumeFeedback}
+              <div className="flex items-center">
+                <div className="text-4xl font-bold text-gray-700 mr-4">
+                  {feedback.resumeScore}/10
+                </div>
+                <div className="flex-1">
+                  <div className="w-full bg-gray-200 rounded-full h-3">
+                    <div
+                      className="bg-gray-600 h-3 rounded-full transition-all duration-500"
+                      style={{
+                        width: `${(feedback.resumeScore / 10) * 100}%`,
+                      }}
+                    ></div>
+                  </div>
                 </div>
               </div>
             </div>
-            <div className="mt-4 text-sm text-green-700">
-              <p>
-                <strong>Submitted:</strong>{" "}
-                {new Date(feedback.createdAt).toLocaleString()}
-              </p>
+            {feedback.resumeUrl && (
+              <div className="bg-white rounded-lg p-5 border border-gray-200 shadow-sm">
+                <h3 className="text-lg font-medium text-gray-800 mb-3">
+                  Resume URL
+                </h3>
+                <a
+                  href={feedback.resumeUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-600 hover:text-blue-800 underline break-all font-medium"
+                >
+                  View Resume
+                </a>
+              </div>
+            )}
+          </div>
+          <div className="mt-6">
+            <h3 className="text-xl font-semibold text-gray-900 mb-4">
+              Detailed Feedback
+            </h3>
+            <div className="bg-white rounded-lg p-6 border border-gray-200 shadow-sm">
+              <FormattedFeedback feedback={feedback.resumeFeedback} />
             </div>
           </div>
-        )}
-      </div>
+          <div className="mt-6 text-sm text-gray-700 bg-white rounded-lg p-4 border border-gray-200">
+            <p>
+              <strong>Submitted:</strong>{" "}
+              {new Date(feedback.createdAt).toLocaleString()}
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

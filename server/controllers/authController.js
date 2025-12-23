@@ -1,6 +1,7 @@
 const User = require("../models/User");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
+const logger = require("../utils/logger");
 
 // Generate JWT Token
 const generateToken = (id) => {
@@ -55,7 +56,11 @@ const registerUser = async (req, res) => {
       });
     }
   } catch (error) {
-    console.error("Register error:", error);
+    logger.error("Register error", {
+      requestId: req.id,
+      error: error.message,
+      stack: error.stack,
+    });
     res.status(500).json({
       error: "Server error during registration",
     });
@@ -95,7 +100,12 @@ const loginUser = async (req, res) => {
       token: generateToken(user._id),
     });
   } catch (error) {
-    console.error("Login error:", error);
+    logger.error("Login error", {
+      requestId: req.id,
+      email: req.body.email,
+      error: error.message,
+      stack: error.stack,
+    });
     res.status(500).json({
       error: "Server error during login",
     });
@@ -107,10 +117,17 @@ const loginUser = async (req, res) => {
 // @access  Private
 const getMe = async (req, res) => {
   try {
-    const user = await User.findById(req.user.id).select("-password");
+    const user = await User.findById(req.user.id)
+      .select("-password")
+      .lean();
     res.json(user);
   } catch (error) {
-    console.error("Get me error:", error);
+    logger.error("Get me error", {
+      requestId: req.id,
+      userId: req.user.id,
+      error: error.message,
+      stack: error.stack,
+    });
     res.status(500).json({
       error: "Server error",
     });
@@ -146,7 +163,12 @@ const promoteToAdmin = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Promote to admin error:", error);
+    logger.error("Promote to admin error", {
+      requestId: req.id,
+      userId: req.params.userId,
+      error: error.message,
+      stack: error.stack,
+    });
     res.status(500).json({
       error: "Server error",
     });
@@ -158,10 +180,16 @@ const promoteToAdmin = async (req, res) => {
 // @access  Private (Admin only)
 const getAllUsers = async (req, res) => {
   try {
-    const users = await User.find({}).select("-password");
+    const users = await User.find({})
+      .select("-password")
+      .lean();
     res.json(users);
   } catch (error) {
-    console.error("Get all users error:", error);
+    logger.error("Get all users error", {
+      requestId: req.id,
+      error: error.message,
+      stack: error.stack,
+    });
     res.status(500).json({
       error: "Server error",
     });

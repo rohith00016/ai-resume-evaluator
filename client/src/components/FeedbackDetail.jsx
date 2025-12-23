@@ -13,6 +13,8 @@ import {
   AlertCircle,
   CheckCircle,
 } from "lucide-react";
+import { showErrorToast } from "../utils/errorHandler";
+import { FormattedFeedback } from "../utils/formatFeedback";
 
 const FeedbackDetail = () => {
   const { submissionId } = useParams();
@@ -35,8 +37,9 @@ const FeedbackDetail = () => {
         );
         setSubmission(response.data);
       } catch (error) {
-        setError("Failed to load submission details");
-        console.error("Error fetching submission:", error);
+        const errorMessage = error.response?.data?.error || "Failed to load submission details";
+        setError(errorMessage);
+        showErrorToast(error, errorMessage);
       } finally {
         setLoading(false);
       }
@@ -63,20 +66,6 @@ const FeedbackDetail = () => {
     });
   };
 
-  const formatFeedback = (feedback) => {
-    if (!feedback) return "";
-
-    // Clean up formatting issues
-    return feedback
-      .replace(/W\*W\*/g, "") // Remove W*W* patterns
-      .replace(/\*\*/g, "") // Remove double asterisks
-      .replace(/\*([^*]+)\*/g, "$1") // Remove single asterisks but keep content
-      .replace(/\n\n+/g, "\n\n") // Normalize multiple line breaks
-      .replace(/^\s+|\s+$/g, "") // Trim whitespace
-      .replace(/([.!?])\s*\n/g, "$1\n\n") // Add proper spacing after sentences
-      .trim();
-  };
-
   const renderFeedbackSection = (title, feedback, score) => {
     if (!feedback) return null;
 
@@ -95,17 +84,7 @@ const FeedbackDetail = () => {
             </div>
           )}
         </div>
-        <div className="prose prose-gray max-w-none">
-          <div className="text-gray-700 leading-relaxed whitespace-pre-wrap text-sm">
-            {formatFeedback(feedback)
-              .split("\n")
-              .map((line, index) => (
-                <div key={index} className="mb-2">
-                  {line}
-                </div>
-              ))}
-          </div>
-        </div>
+        <FormattedFeedback feedback={feedback} />
       </div>
     );
   };

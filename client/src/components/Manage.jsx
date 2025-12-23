@@ -1,13 +1,13 @@
 import { useState, useEffect } from "react";
 import { useSelector } from "react-redux";
 import axios from "axios";
-import { UserPlus, Users, AlertCircle, CheckCircle } from "lucide-react";
+import { UserPlus, Users } from "lucide-react";
+import { showErrorToast, getErrorMessage } from "../utils/errorHandler";
 
 const Manage = () => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [promoting, setPromoting] = useState(null);
-  const [message, setMessage] = useState({ type: "", text: "" });
 
   const { token } = useSelector((state) => state.auth);
 
@@ -24,15 +24,8 @@ const Manage = () => {
         }
       );
       setUsers(response.data);
-      setMessage({
-        type: "success",
-        text: `Loaded ${response.data.length} users successfully`,
-      });
     } catch (error) {
-      setMessage({
-        type: "error",
-        text: error.response?.data?.error || "Failed to fetch users",
-      });
+      showErrorToast(error, "Failed to fetch users");
     } finally {
       setLoading(false);
     }
@@ -52,11 +45,6 @@ const Manage = () => {
         }
       );
 
-      setMessage({
-        type: "success",
-        text: `User promoted to admin successfully!`,
-      });
-
       // Update the user in the list
       setUsers(
         users.map((user) =>
@@ -64,10 +52,7 @@ const Manage = () => {
         )
       );
     } catch (error) {
-      setMessage({
-        type: "error",
-        text: error.response?.data?.error || "Failed to promote user",
-      });
+      showErrorToast(error, "Failed to promote user");
     } finally {
       setPromoting(null);
     }
@@ -94,27 +79,6 @@ const Manage = () => {
           </div>
         </div>
 
-        {/* Message Display */}
-        {message.text && (
-          <div
-            className={`mb-6 p-4 rounded-md ${
-              message.type === "success"
-                ? "bg-green-50 border border-green-200 text-green-700"
-                : message.type === "error"
-                ? "bg-red-50 border border-red-200 text-red-700"
-                : "bg-blue-50 border border-blue-200 text-blue-700"
-            }`}
-          >
-            <div className="flex items-center">
-              {message.type === "success" ? (
-                <CheckCircle className="w-5 h-5 mr-2" />
-              ) : (
-                <AlertCircle className="w-5 h-5 mr-2" />
-              )}
-              {message.text}
-            </div>
-          </div>
-        )}
 
         {/* Admin Actions */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">

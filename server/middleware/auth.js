@@ -1,5 +1,6 @@
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
+const logger = require("../utils/logger");
 
 /**
  * Middleware to protect routes by verifying JWT token
@@ -34,7 +35,11 @@ const protect = async (req, res, next) => {
       req.user = user;
       next();
     } catch (error) {
-      console.error("JWT verification error:", error.message);
+      logger.warn("JWT verification error:", {
+        requestId: req.id,
+        error: error.message,
+        ip: req.ip,
+      });
       return res.status(401).json({
         success: false,
         message: "Not authorized, token failed - Invalid token",

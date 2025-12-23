@@ -112,8 +112,9 @@ const FeedbackList = () => {
         type: "resume/fetchEvaluations/fulfilled",
         payload: updatedEvaluations,
       });
+      // Success toast is handled in the Redux slice
     } catch (error) {
-      console.error("Failed to send email:", error);
+      // Error toast is handled in the Redux slice
     } finally {
       setSendingEmailId(null);
     }

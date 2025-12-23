@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate, Link } from "react-router-dom";
 import { registerUser } from "../features/authSlice";
+import { showValidationError } from "../utils/errorHandler";
 
 const AdminRegister = () => {
   const [formData, setFormData] = useState({
@@ -28,13 +29,29 @@ const AdminRegister = () => {
   const handleSubmit = (e) => {
     e.preventDefault();
 
+    // Validation
+    if (!formData.username.trim()) {
+      showValidationError("Username is required");
+      return;
+    }
+
+    if (!formData.email.trim()) {
+      showValidationError("Email is required");
+      return;
+    }
+
+    if (formData.password.length < 6) {
+      showValidationError("Password must be at least 6 characters");
+      return;
+    }
+
     if (formData.password !== formData.confirmPassword) {
-      alert("Passwords do not match");
+      showValidationError("Passwords do not match");
       return;
     }
 
     if (!formData.adminCode.trim()) {
-      alert("Admin code is required");
+      showValidationError("Admin code is required");
       return;
     }
 
@@ -61,11 +78,6 @@ const AdminRegister = () => {
           </p>
         </div>
 
-        {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
-            {error}
-          </div>
-        )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>

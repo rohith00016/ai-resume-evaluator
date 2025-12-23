@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import axios from "axios";
+import { showErrorToast } from "../utils/errorHandler";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
 
@@ -102,8 +103,10 @@ const resumeSlice = createSlice({
       })
       .addCase(uploadResume.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.payload?.error || "Upload failed";
+        const errorMessage = action.payload?.error || "Upload failed";
+        state.error = errorMessage;
         state.uploadProgress = 0;
+        showErrorToast(errorMessage);
       })
       // Fetch Evaluations
       .addCase(fetchEvaluations.pending, (state) => {
@@ -116,7 +119,9 @@ const resumeSlice = createSlice({
       })
       .addCase(fetchEvaluations.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.payload?.error || "Fetch failed";
+        const errorMessage = action.payload?.error || "Failed to load evaluations";
+        state.error = errorMessage;
+        showErrorToast(errorMessage);
       })
       // Send Email
       .addCase(sendFeedbackEmail.pending, (state) => {
@@ -136,7 +141,9 @@ const resumeSlice = createSlice({
       })
       .addCase(sendFeedbackEmail.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.payload?.error || "Email send failed";
+        const errorMessage = action.payload?.error || "Failed to send email";
+        state.error = errorMessage;
+        showErrorToast(errorMessage);
       });
   },
 });

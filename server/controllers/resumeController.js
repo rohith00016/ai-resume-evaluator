@@ -2,6 +2,7 @@ const pdfParse = require("pdf-parse");
 const aiService = require("../services/aiService");
 const emailService = require("../services/emailService");
 const Learner = require("../models/Learner");
+const logger = require("../utils/logger");
 
 class ResumeController {
   async createLearner(req, res, next) {
@@ -76,7 +77,12 @@ class ResumeController {
 
       // Send feedback email after evaluation
       try {
-        console.log("Preparing to send feedback email...");
+        logger.info("Preparing to send feedback email", {
+          requestId: req.id,
+          learnerId: learner._id,
+          name,
+          email,
+        });
 
         // Prepare evaluation data for email
         const evaluationData = {
@@ -94,42 +100,41 @@ class ResumeController {
           }),
         };
 
-        console.log("Evaluation data prepared:", {
-          name: evaluationData.name,
-          email: evaluationData.email,
-          hasResumeFeedback: !!evaluationData.resumeFeedback,
-          hasPortfolioFeedback: !!evaluationData.portfolioFeedback,
-        });
-
         // Use feedbackEmail if provided, otherwise use user's email
         const recipientEmail = feedbackEmail || email;
 
         // Send feedback email
         await emailService.sendFeedbackEmail(evaluationData, recipientEmail);
-        console.log(`Feedback email sent to ${recipientEmail} for ${name}`);
+        logger.info("Feedback email sent successfully", {
+          requestId: req.id,
+          learnerId: learner._id,
+          recipientEmail,
+          name,
+        });
 
         // Update the learner record to mark email as sent
         await Learner.findByIdAndUpdate(learner._id, {
           emailSent: true,
           emailSentAt: new Date(),
         });
-        console.log(`Database updated: emailSent=true for ${name}`);
       } catch (feedbackEmailError) {
-        console.error("Failed to send feedback email:", feedbackEmailError);
-        console.error("Error details:", {
-          message: feedbackEmailError.message,
+        logger.error("Failed to send feedback email", {
+          requestId: req.id,
+          learnerId: learner._id,
+          error: feedbackEmailError.message,
           stack: feedbackEmailError.stack,
         });
         // Don't fail the request if email fails, but log the error
         // The admin can manually resend the email later
       }
 
-      // Fetch the updated learner record to get the email status
+      // Fetch the updated learner record to get the email status (use lean for performance)
       const updatedLearner = await Learner.findById(learner._id)
         .populate("submittedBy", "username email")
         .select(
           "_id name email course portfolioUrl portfolioFeedback portfolioScore resumeFeedback resumeScore createdAt emailSent emailSentAt submittedBy feedbackEmail"
-        );
+        )
+        .lean();
 
       res.status(201).json({
         message: "Evaluation completed",
@@ -169,13 +174,14 @@ class ResumeController {
       }
       // Admins can see all submissions (no additional filter needed)
 
-      // Get learners with role-based filtering
+      // Get learners with role-based filtering (use lean for better performance)
       const learners = await Learner.find(query)
         .populate("submittedBy", "username email")
         .select(
           "_id name email course portfolioUrl portfolioFeedback portfolioScore resumeFeedback resumeScore createdAt emailSent emailSentAt submittedBy"
         )
-        .sort({ createdAt: -1 });
+        .sort({ createdAt: -1 })
+        .lean();
 
       res.json(learners);
     } catch (error) {
@@ -195,12 +201,13 @@ class ResumeController {
       }
       // Admins can see all submissions (no additional filter needed)
 
-      // Get learner with role-based filtering
+      // Get learner with role-based filtering (use lean for better performance)
       const learner = await Learner.findOne(query)
         .populate("submittedBy", "username email")
         .select(
           "_id name email course portfolioUrl portfolioFeedback portfolioScore resumeFeedback resumeScore createdAt emailSent emailSentAt submittedBy"
-        );
+        )
+        .lean();
 
       if (!learner) {
         return res.status(404).json({ error: "Evaluation not found" });
@@ -267,7 +274,12 @@ class ResumeController {
 
       // Send feedback email after evaluation
       try {
-        console.log("Preparing to send automatic resume feedback email...");
+        logger.info("Preparing to send automatic resume feedback email", {
+          requestId: req.id,
+          learnerId: learner._id,
+          name,
+          email,
+        });
 
         const evaluationData = {
           name,
@@ -277,46 +289,41 @@ class ResumeController {
           resumeScore: score,
         };
 
-        console.log("Resume evaluation data prepared:", {
-          name: evaluationData.name,
-          email: evaluationData.email,
-          hasResumeFeedback: !!evaluationData.resumeFeedback,
-        });
-
         // Use feedbackEmail if provided, otherwise use user's email
         const recipientEmail = feedbackEmail || email;
 
         // Send feedback email
         await emailService.sendFeedbackEmail(evaluationData, recipientEmail);
-        console.log(
-          `Resume feedback email sent to ${recipientEmail} for ${name}`
-        );
+        logger.info("Resume feedback email sent successfully", {
+          requestId: req.id,
+          learnerId: learner._id,
+          recipientEmail,
+          name,
+        });
 
         // Update the learner record to mark email as sent
         await Learner.findByIdAndUpdate(learner._id, {
           emailSent: true,
           emailSentAt: new Date(),
         });
-        console.log(`Database updated: emailSent=true for ${name}`);
       } catch (feedbackEmailError) {
-        console.error(
-          "Failed to send resume feedback email:",
-          feedbackEmailError
-        );
-        console.error("Error details:", {
-          message: feedbackEmailError.message,
+        logger.error("Failed to send resume feedback email", {
+          requestId: req.id,
+          learnerId: learner._id,
+          error: feedbackEmailError.message,
           stack: feedbackEmailError.stack,
         });
         // Don't fail the request if email fails, but log the error
         // The admin can manually resend the email later
       }
 
-      // Fetch the updated learner record to get the email status
+      // Fetch the updated learner record to get the email status (use lean for performance)
       const updatedLearner = await Learner.findById(learner._id)
         .populate("submittedBy", "username email")
         .select(
           "_id name email course resumeFeedback resumeScore createdAt emailSent emailSentAt submittedBy feedbackEmail"
-        );
+        )
+        .lean();
 
       res.status(201).json({
         message: "Resume evaluation completed",
@@ -380,7 +387,12 @@ class ResumeController {
 
       // Send feedback email after evaluation
       try {
-        console.log("Preparing to send automatic portfolio feedback email...");
+        logger.info("Preparing to send automatic portfolio feedback email", {
+          requestId: req.id,
+          learnerId: learner._id,
+          name,
+          email,
+        });
 
         const evaluationData = {
           name,
@@ -391,46 +403,41 @@ class ResumeController {
           portfolioUrl: portfolioUrl,
         };
 
-        console.log("Portfolio evaluation data prepared:", {
-          name: evaluationData.name,
-          email: evaluationData.email,
-          hasPortfolioFeedback: !!evaluationData.portfolioFeedback,
-        });
-
         // Use feedbackEmail if provided, otherwise use user's email
         const recipientEmail = feedbackEmail || email;
 
         // Send feedback email
         await emailService.sendFeedbackEmail(evaluationData, recipientEmail);
-        console.log(
-          `Portfolio feedback email sent to ${recipientEmail} for ${name}`
-        );
+        logger.info("Portfolio feedback email sent successfully", {
+          requestId: req.id,
+          learnerId: learner._id,
+          recipientEmail,
+          name,
+        });
 
         // Update the learner record to mark email as sent
         await Learner.findByIdAndUpdate(learner._id, {
           emailSent: true,
           emailSentAt: new Date(),
         });
-        console.log(`Database updated: emailSent=true for ${name}`);
       } catch (feedbackEmailError) {
-        console.error(
-          "Failed to send portfolio feedback email:",
-          feedbackEmailError
-        );
-        console.error("Error details:", {
-          message: feedbackEmailError.message,
+        logger.error("Failed to send portfolio feedback email", {
+          requestId: req.id,
+          learnerId: learner._id,
+          error: feedbackEmailError.message,
           stack: feedbackEmailError.stack,
         });
         // Don't fail the request if email fails, but log the error
         // The admin can manually resend the email later
       }
 
-      // Fetch the updated learner record to get the email status
+      // Fetch the updated learner record to get the email status (use lean for performance)
       const updatedLearner = await Learner.findById(learner._id)
         .populate("submittedBy", "username email")
         .select(
           "_id name email course portfolioUrl portfolioFeedback portfolioScore createdAt emailSent emailSentAt submittedBy feedbackEmail"
-        );
+        )
+        .lean();
 
       res.status(201).json({
         message: "Portfolio evaluation completed",
@@ -479,11 +486,13 @@ class ResumeController {
         evaluationId: evaluation._id,
       });
     } catch (error) {
-      console.error("Error sending feedback email:", error);
-      res.status(500).json({
-        error: "Failed to send email",
-        details: error.message,
+      logger.error("Error sending feedback email", {
+        requestId: req.id,
+        evaluationId: req.body.evaluationId,
+        error: error.message,
+        stack: error.stack,
       });
+      next(error);
     }
   }
 }

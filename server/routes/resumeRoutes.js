@@ -57,6 +57,7 @@ router.post(
 
 // Test endpoint for email service (development only)
 if (process.env.NODE_ENV === "development") {
+  const logger = require("../utils/logger");
   router.post("/test-email", protect, authorize("admin"), async (req, res) => {
     try {
       const emailService = require("../services/emailService");
@@ -69,7 +70,11 @@ if (process.env.NODE_ENV === "development") {
       });
       res.json({ message: "Test email sent successfully" });
     } catch (error) {
-      console.error("Test email error:", error);
+      logger.error("Test email error", {
+        requestId: req.id,
+        error: error.message,
+        stack: error.stack,
+      });
       res.status(500).json({ error: error.message });
     }
   });

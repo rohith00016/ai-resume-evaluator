@@ -18,8 +18,9 @@ const LearnerList = () => {
     try {
       setSendingEmailId(evaluationId);
       await dispatch(sendFeedbackEmail(evaluationId)).unwrap();
+      // Success toast is handled in the Redux slice
     } catch (error) {
-      console.error("Failed to send email:", error);
+      // Error toast is handled in the Redux slice
     } finally {
       setSendingEmailId(null);
     }

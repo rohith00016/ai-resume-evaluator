@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { FileText, Filter } from "lucide-react";
 import SubmissionCard from "./SubmissionCard";
+import { showErrorToast, getErrorMessage } from "../utils/errorHandler";
 
 const Submissions = () => {
   const navigate = useNavigate();
@@ -33,7 +34,7 @@ const Submissions = () => {
       );
       setSubmissions(response.data);
     } catch (error) {
-      console.error("Error fetching submissions:", error);
+      showErrorToast(error, "Failed to load submissions");
     } finally {
       setLoading(false);
     }
@@ -66,7 +67,7 @@ const Submissions = () => {
         )
       );
     } catch (error) {
-      console.error("Error sending email:", error);
+      showErrorToast(error, "Failed to send email");
     } finally {
       setSendingEmailId(null);
     }

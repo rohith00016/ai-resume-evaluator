@@ -15,6 +15,7 @@ import {
   Share,
   Copy,
 } from "lucide-react";
+import { FormattedFeedback } from "../utils/formatFeedback";
 
 const LearnerForm = () => {
   const dispatch = useDispatch();
@@ -248,23 +249,23 @@ const LearnerForm = () => {
               <div className="space-y-4">
                 {currentEvaluation.resumeFeedback && (
                   <div className="text-left">
-                    <h4 className="font-semibold text-gray-900 mb-2">
+                    <h4 className="font-semibold text-gray-900 mb-3">
                       Resume Feedback:
                     </h4>
-                    <p className="text-gray-700 whitespace-pre-wrap text-sm">
-                      {currentEvaluation.resumeFeedback}
-                    </p>
+                    <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                      <FormattedFeedback feedback={currentEvaluation.resumeFeedback} />
+                    </div>
                   </div>
                 )}
 
                 {currentEvaluation.portfolioFeedback && (
                   <div className="text-left">
-                    <h4 className="font-semibold text-gray-900 mb-2">
+                    <h4 className="font-semibold text-gray-900 mb-3">
                       Portfolio Feedback:
                     </h4>
-                    <p className="text-gray-700 whitespace-pre-wrap text-sm">
-                      {currentEvaluation.portfolioFeedback}
-                    </p>
+                    <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                      <FormattedFeedback feedback={currentEvaluation.portfolioFeedback} />
+                    </div>
                   </div>
                 )}
               </div>

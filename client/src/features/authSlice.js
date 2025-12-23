@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import axios from "axios";
+import { showErrorToast } from "../utils/errorHandler";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
 
@@ -111,7 +112,9 @@ const authSlice = createSlice({
       })
       .addCase(loginUser.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.payload?.error || "Login failed";
+        const errorMessage = action.payload?.error || "Login failed";
+        state.error = errorMessage;
+        showErrorToast(errorMessage);
       })
       // Register
       .addCase(registerUser.pending, (state) => {
@@ -126,7 +129,9 @@ const authSlice = createSlice({
       })
       .addCase(registerUser.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.payload?.error || "Registration failed";
+        const errorMessage = action.payload?.error || "Registration failed";
+        state.error = errorMessage;
+        showErrorToast(errorMessage);
       })
       // Logout
       .addCase(logoutUser.pending, (state) => {
