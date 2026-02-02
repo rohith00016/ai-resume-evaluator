@@ -40,9 +40,20 @@ const scrapeWebsite = async (url) => {
   };
 
   // For Render.com: Configure cache directory
-  if (process.env.RENDER) {
-    // Set cache directory for Render.com
-    process.env.PUPPETEER_CACHE_DIR = process.env.PUPPETEER_CACHE_DIR || "/opt/render/.cache/puppeteer";
+  const fs = require("fs");
+  const path = require("path");
+  
+  // Set cache directory - prioritize node_modules cache which persists with deployment
+  const nodeModulesCache = path.join(process.cwd(), "node_modules", ".cache", "puppeteer");
+  const renderCache = process.env.PUPPETEER_CACHE_DIR || "/opt/render/.cache/puppeteer";
+  
+  // Try node_modules cache first (persists with deployment), then Render cache
+  if (fs.existsSync(nodeModulesCache)) {
+    process.env.PUPPETEER_CACHE_DIR = nodeModulesCache;
+    console.log(`Using node_modules cache: ${nodeModulesCache}`);
+  } else if (process.env.RENDER) {
+    process.env.PUPPETEER_CACHE_DIR = renderCache;
+    console.log(`Using Render cache: ${renderCache}`);
   }
 
   // Try to use executable path if provided (for Render.com or custom setups)
@@ -51,7 +62,6 @@ const scrapeWebsite = async (url) => {
   }
 
   let browser;
-  const fs = require("fs");
   
   try {
     // First, try to get Puppeteer's bundled Chrome path and verify it exists
@@ -59,11 +69,49 @@ const scrapeWebsite = async (url) => {
     if (puppeteerExecutablePath && fs.existsSync(puppeteerExecutablePath)) {
       console.log(`Using Puppeteer Chrome at: ${puppeteerExecutablePath}`);
       launchOptions.executablePath = puppeteerExecutablePath;
-    } else if (puppeteerExecutablePath) {
-      console.warn(`Chrome path exists but file not found: ${puppeteerExecutablePath}`);
+      browser = await puppeteer.launch(launchOptions);
+    } else {
+      // If path doesn't exist, try to find Chrome in cache directories
+      const cacheDirs = [
+        nodeModulesCache,
+        renderCache,
+      ];
+      
+      let foundPath = null;
+      for (const cacheDir of cacheDirs) {
+        if (fs.existsSync(cacheDir)) {
+          // Look for chrome directory in cache
+          const chromeDir = path.join(cacheDir, "chrome");
+          if (fs.existsSync(chromeDir)) {
+            // Find the version directory (e.g., linux-138.0.7204.168)
+            const versionDirs = fs.readdirSync(chromeDir).filter(dir => 
+              dir.startsWith("linux-") || dir.startsWith("chrome-")
+            );
+            
+            for (const versionDir of versionDirs) {
+              const chromePath = path.join(chromeDir, versionDir, "chrome-linux64", "chrome");
+              if (fs.existsSync(chromePath)) {
+                foundPath = chromePath;
+                console.log(`Found Chrome at: ${foundPath}`);
+                break;
+              }
+            }
+            
+            if (foundPath) break;
+          }
+        }
+      }
+      
+      if (foundPath) {
+        launchOptions.executablePath = foundPath;
+        browser = await puppeteer.launch(launchOptions);
+      } else {
+        // Try launching without explicit path - let Puppeteer find it
+        console.warn("Chrome executable not found at any known path, trying default...");
+        delete launchOptions.executablePath;
+        browser = await puppeteer.launch(launchOptions);
+      }
     }
-    
-    browser = await puppeteer.launch(launchOptions);
   } catch (error) {
     // If launch fails, try without specifying executable path
     if (error.message.includes("Could not find Chrome") || error.message.includes("Browser was not found")) {
