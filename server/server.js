@@ -20,6 +20,9 @@ const authRoutes = require("./routes/authRoutes");
 
 const app = express();
 
+// Trust proxy - Required for Render.com and rate limiting
+app.set('trust proxy', true);
+
 // Validate environment variables
 try {
   validateEnv();
