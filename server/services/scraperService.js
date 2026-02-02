@@ -35,6 +35,11 @@ const scrapeWebsite = async (url) => {
   });
 
   const page = await browser.newPage();
+  
+  // Set a realistic user agent to avoid bot detection
+  await page.setUserAgent(
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+  );
 
   const crawlAndScrape = async (currentUrl) => {
     if (visited.has(currentUrl)) return;
@@ -52,33 +57,125 @@ const scrapeWebsite = async (url) => {
           navigationError.message
         );
         // Try with different wait strategy
-        await page.goto(currentUrl, {
-          waitUntil: "domcontentloaded",
-          timeout: 30000,
-        });
+        try {
+          await page.goto(currentUrl, {
+            waitUntil: "domcontentloaded",
+            timeout: 30000,
+          });
+        } catch (fallbackError) {
+          console.warn(
+            `Fallback navigation also failed for ${currentUrl}:`,
+            fallbackError.message
+          );
+          // Try with load event as last resort
+          await page.goto(currentUrl, {
+            waitUntil: "load",
+            timeout: 20000,
+          });
+        }
       }
 
+      // Wait for JavaScript to render content (important for SPAs)
+      // Smart waiting: check if content is already loaded, otherwise wait
+      try {
+        // Wait for body to be present (should already be there after navigation)
+        await page.waitForSelector("body", { timeout: 2000 });
+        
+        // Check if meaningful content exists, if not wait a bit more
+        const hasContent = await page.evaluate(() => {
+          const bodyText = document.body?.innerText || "";
+          return bodyText.trim().length > 100; // At least 100 chars of content
+        });
+        
+        if (!hasContent) {
+          // Content not loaded yet, wait for it to appear
+          await Promise.race([
+            page.waitForFunction(
+              () => (document.body?.innerText || "").trim().length > 100,
+              { timeout: 3000 }
+            ).catch(() => null),
+            new Promise((resolve) => setTimeout(resolve, 2000))
+          ]);
+        }
+      } catch (e) {
+        // If waiting fails, use a minimal fallback delay
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+      }
+
+      // Extract text directly from the rendered page (better for SPAs)
+      const pageText = await page.evaluate(() => {
+        const getTextFromElement = (el) => {
+          const text = el.innerText || el.textContent || "";
+          return text.trim().replace(/\s+/g, " ");
+        };
+
+        const texts = [];
+        const seenTexts = new Set();
+        
+        // Get all visible elements
+        const allElements = document.querySelectorAll("body *");
+        
+        allElements.forEach((el) => {
+          const tag = el.tagName.toLowerCase();
+          const text = getTextFromElement(el);
+          
+          // Skip script, style, and other non-content elements
+          if (
+            ["script", "style", "noscript", "meta", "link"].includes(tag) ||
+            text.length < 2
+          ) {
+            return;
+          }
+
+          // Only add if it's meaningful text and not already seen
+          if (text.length > 2 && !seenTexts.has(text)) {
+            // Check if this text is not just a subset of parent's text
+            const parent = el.parentElement;
+            if (parent) {
+              const parentText = getTextFromElement(parent);
+              if (parentText === text) {
+                return; // Skip if same as parent
+              }
+            }
+            
+            texts.push({ tag, text });
+            seenTexts.add(text);
+          }
+        });
+
+        return texts;
+      });
+
+      // Also get HTML for link/image extraction
       const html = await page.content();
       const $ = cheerio.load(html);
 
-      const seenTexts = new Set();
-      const texts = [];
-      $("body *").each((_, el) => {
-        const tag = el.tagName;
-        const text = $(el).text().trim().replace(/\s+/g, " ");
-        if (text.length > 1 && !seenTexts.has(text)) {
-          texts.push({ tag, text });
-          seenTexts.add(text);
-        }
-      });
+      const texts = pageText || [];
 
+      // Extract links using both methods for better coverage
       const links = [];
       $("a").each((_, el) => {
         const href = $(el).attr("href");
-        const text = $(el).text().trim().replace(/\s+/g, " ");
+        let text = $(el).text().trim().replace(/\s+/g, " ");
+        
+        // If no text, try to get from title, aria-label, or img alt
+        if (!text) {
+          text = $(el).attr("title") || $(el).attr("aria-label") || "";
+          const img = $(el).find("img");
+          if (img.length && !text) {
+            text = img.attr("alt") || "";
+          }
+        }
+        
         const target = $(el).attr("target");
         const absUrl = getAbsoluteUrl(currentUrl, href);
-        if (absUrl && text) links.push({ href: absUrl, text, target });
+        if (absUrl && (text || href)) {
+          links.push({ 
+            href: absUrl, 
+            text: text || href, 
+            target: target || "none" 
+          });
+        }
       });
 
       const images = [];
@@ -100,10 +197,15 @@ const scrapeWebsite = async (url) => {
         if (src) jsFiles.push(getAbsoluteUrl(currentUrl, src));
       });
 
+      // Log scraping results for debugging
+      console.log(
+        `📄 Scraped ${currentUrl}: ${texts.length} text elements, ${links.length} links, ${images.length} images`
+      );
+
       scrapedData.push({
         page: currentUrl,
         content: {
-          visibleTexts: texts.slice(0, 100),
+          visibleTexts: texts.slice(0, 200), // Increased limit
           links,
           images,
           cssFiles,
@@ -127,8 +229,26 @@ const scrapeWebsite = async (url) => {
     await browser.close();
   }
 
+  // Validate that we scraped meaningful content
+  const hasContent = scrapedData.some((page) => {
+    const hasTexts = page.content.visibleTexts.length > 0;
+    const hasLinks = page.content.links.length > 0;
+    const totalTextLength = page.content.visibleTexts.reduce(
+      (sum, item) => sum + item.text.length,
+      0
+    );
+    // Consider it successful if we have texts OR links, and at least some meaningful text
+    return (hasTexts || hasLinks) && totalTextLength > 50;
+  });
+
+  if (!hasContent) {
+    console.warn(
+      `⚠️ No meaningful content scraped from ${url}. Total pages: ${scrapedData.length}`
+    );
+  }
+
   return {
-    success: true,
+    success: hasContent && scrapedData.length > 0,
     totalPages: scrapedData.length,
     scrapedData,
   };
