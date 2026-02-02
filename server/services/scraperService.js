@@ -23,7 +23,8 @@ const scrapeWebsite = async (url) => {
     }
   };
 
-  const browser = await puppeteer.launch({
+  // Configure Puppeteer for Render.com deployment
+  const launchOptions = {
     headless: true,
     args: [
       "--no-sandbox",
@@ -31,8 +32,43 @@ const scrapeWebsite = async (url) => {
       "--disable-web-security",
       "--disable-features=VizDisplayCompositor",
       "--disable-dev-shm-usage",
+      "--disable-gpu",
+      "--disable-software-rasterizer",
+      "--disable-extensions",
+      "--single-process", // Important for Render.com
     ],
-  });
+  };
+
+  // For Render.com: Configure cache directory
+  if (process.env.RENDER) {
+    // Set cache directory for Render.com
+    process.env.PUPPETEER_CACHE_DIR = process.env.PUPPETEER_CACHE_DIR || "/opt/render/.cache/puppeteer";
+  }
+
+  // Try to use executable path if provided (for Render.com or custom setups)
+  if (process.env.PUPPETEER_EXECUTABLE_PATH) {
+    launchOptions.executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
+  }
+
+  let browser;
+  try {
+    browser = await puppeteer.launch(launchOptions);
+  } catch (error) {
+    // If launch fails, try with bundled Chrome path
+    if (error.message.includes("Could not find Chrome")) {
+      console.warn("Chrome not found, attempting to use Puppeteer bundled Chrome...");
+      // Force Puppeteer to use its bundled Chrome
+      const puppeteerExecutablePath = puppeteer.executablePath();
+      if (puppeteerExecutablePath) {
+        launchOptions.executablePath = puppeteerExecutablePath;
+        browser = await puppeteer.launch(launchOptions);
+      } else {
+        throw new Error("Chrome executable not found. Please ensure Chrome is installed or Puppeteer browser is downloaded.");
+      }
+    } else {
+      throw error;
+    }
+  }
 
   const page = await browser.newPage();
   

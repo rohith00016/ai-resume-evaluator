@@ -5,7 +5,9 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node server.js",
-    "dev": "nodemon server.js"
+    "dev": "nodemon server.js",
+    "build": "npx puppeteer browsers install chrome || echo 'Chrome installation skipped'",
+    "postinstall": "npm run build"
   },
   "keywords": [],
   "author": "",
