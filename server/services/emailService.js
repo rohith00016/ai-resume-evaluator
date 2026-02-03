@@ -382,47 +382,36 @@ class EmailService {
             <tr>
               <td align="center" style="padding:60px 20px;">
                 <table role="presentation" width="650" cellpadding="0" cellspacing="0" style="width:650px; max-width:650px; background:#FFFFFF; position:relative;">
+                  <!-- Header -->
                   <tr>
-                    <td style="padding:0;">
-                      <!-- Header -->
-                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-                        <tr>
-                          <td style="padding:48px 48px 24px; text-align:center; background:#FFFFFF;">
-                            <img src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/guvi-logo-gLpzR6WIaPPfUZsIzGsPLsTKzkxgq2.png" alt="GUVI Logo" style="max-width:120px; height:auto; margin-bottom:24px; display:block; margin-left:auto; margin-right:auto;">
-                            <div style="font-weight:400; font-size:15px; font-family:${this.systemFont}; color:#64748B; margin-bottom:8px;">Hello <span style="color:${greenColor};">${name}</span>,</div>
-                            <div style="font-weight:400; font-size:14px; font-family:${this.systemFont}; color:#475569;">Your ${evaluationType.toLowerCase()} has been evaluated</div>
-                          </td>
-                        </tr>
-                      </table>
+                    <td style="padding:48px 48px 24px; text-align:center; background:#FFFFFF;">
+                      <img src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/guvi-logo-gLpzR6WIaPPfUZsIzGsPLsTKzkxgq2.png" alt="GUVI Logo" style="max-width:120px; height:auto; margin-bottom:24px; display:block; margin-left:auto; margin-right:auto;">
+                      <div style="font-weight:400; font-size:15px; font-family:${this.systemFont}; color:#64748B; margin-bottom:8px;">Hello <span style="color:${greenColor};">${name}</span>,</div>
+                      <div style="font-weight:400; font-size:14px; font-family:${this.systemFont}; color:#475569;">Your ${evaluationType.toLowerCase()} has been evaluated</div>
+                    </td>
+                  </tr>
+                  
+                  <!-- Score Section -->
+                  ${scoreBlock}
+                  
+                  <!-- Detailed Feedback Section -->
+                  <tr>
+                    <td style="padding:0 48px 48px; background:#FFFFFF; text-align:left;">
+                      <div style="font-weight:700; font-size:18px; font-family:${this.systemFont}; color:#0F172A; margin-bottom:20px; text-align:left;">Detailed Feedback</div>
                       
-                      <!-- Score Section -->
-                      ${scoreBlock}
+                      <div style="font-weight:400; font-size:14px; font-family:${this.systemFont}; color:#475569; line-height:1.75; text-align:left;">
+                        ${this.formatFeedbackForEmail(feedback)}
+                      </div>
                       
-                      <!-- Detailed Feedback Section -->
-                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-                        <tr>
-                          <td style="padding:0 48px 48px; background:#FFFFFF; text-align:left;">
-                            <div style="font-weight:700; font-size:18px; font-family:${this.systemFont}; color:#0F172A; margin-bottom:20px; text-align:left;">Detailed Feedback</div>
-                            
-                            <div style="font-weight:400; font-size:14px; font-family:${this.systemFont}; color:#475569; line-height:1.75; text-align:left;">
-                              ${this.formatFeedbackForEmail(feedback)}
-                            </div>
-                            
-                            <!-- Notice Section - Direct content to prevent Gmail collapsing -->
-                            <div style="margin-top:32px; padding-top:24px; border-top:1px solid ${border};">
-                              <p style="margin:0 0 8px; font-weight:400; font-size:14px; font-family:${this.systemFont}; color:#111827; line-height:1.6; text-align:left;">
-                                Kindly rework as per the above feedback and submit it for review in the same form within 2 days.
-                              </p>
-                              <p style="margin:0; font-weight:400; font-size:11px; font-family:${this.systemFont}; color:#94A3B8; line-height:1.4; text-align:left;">
-                                This is an auto-generated email. Please do not reply.
-                              </p>
-                            </div>
-                          </td>
-                        </tr>
-                      </table>
-                          </td>
-                        </tr>
-                      </table>
+                      <!-- Notice Section - Direct content to prevent Gmail collapsing -->
+                      <div style="margin-top:32px; padding-top:24px; border-top:1px solid ${border};">
+                        <p style="margin:0 0 8px; font-weight:400; font-size:14px; font-family:${this.systemFont}; color:#111827; line-height:1.6; text-align:left;">
+                          Kindly rework as per the above feedback and submit it for review in the same form within 2 days.
+                        </p>
+                        <p style="margin:0; font-weight:400; font-size:11px; font-family:${this.systemFont}; color:#94A3B8; line-height:1.4; text-align:left;">
+                          This is an auto-generated email. Please do not reply.
+                        </p>
+                      </div>
                     </td>
                   </tr>
                 </table>
