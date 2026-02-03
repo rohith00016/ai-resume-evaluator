@@ -124,7 +124,10 @@ class EmailService {
         if (!content) return; // Skip empty bullet points
         
         // Skip section-by-section scores (bullet points with score pattern)
-        const scoreMatch = content.match(/^(.+?):\s*(\d+)\/(\d+)$/);
+        // Match score patterns even with additional text after (e.g., "Experience: 0/10 (N/A for this resume)" or "Experience: N/A")
+        const scoreMatch = content.match(/^(.+?):\s*([\d.]+)\/(\d+)/);
+        const naMatch = content.match(/^(.+?):\s*(N\/A|N\/A\s|not applicable|not scored)/i);
+        
         if (scoreMatch) {
           // Skip this line - it's a section-by-section score
           // Also check for common section names like Experience, Header, Skills, etc.
@@ -133,7 +136,17 @@ class EmailService {
           if (sectionKeywords.some(keyword => label.includes(keyword))) {
             return;
           }
-          return;
+          // Also skip overall score patterns
+          if (label.includes("overall") || label.includes("score")) {
+            return;
+          }
+        } else if (naMatch) {
+          // Check for N/A patterns (e.g., "Experience: N/A (This is a fresher resume...)")
+          const label = naMatch[1].toLowerCase();
+          const sectionKeywords = ['experience', 'header', 'summary', 'skills', 'education', 'projects', 'achievements', 'certifications'];
+          if (sectionKeywords.some(keyword => label.includes(keyword))) {
+            return;
+          }
         }
         if (!inList) {
           formattedLines.push(
@@ -156,6 +169,40 @@ class EmailService {
 
       // Detect numbered lists
       if (trimmed.match(/^\d+\.\s/)) {
+        const content = trimmed.replace(/^\d+\.\s/, "");
+        
+        // Check if this numbered list item is a section score pattern (e.g., "Experience: 0/10 (N/A for this resume)" or "Experience: N/A")
+        const scoreMatch = content.match(/^(.+?):\s*([\d.]+)\/(\d+)/);
+        const naMatch = content.match(/^(.+?):\s*(N\/A|N\/A\s|not applicable|not scored)/i);
+        
+        if (scoreMatch) {
+          const [, label] = scoreMatch;
+          const labelLower = label.toLowerCase();
+          
+          // Skip overall score display (shown in score box instead)
+          if (labelLower.includes("overall") || labelLower.includes("score")) {
+            return;
+          }
+          
+          // Skip all section score patterns (section-by-section like Experience, Header, etc.)
+          const sectionKeywords = ['experience', 'header', 'summary', 'skills', 'education', 'projects', 'achievements', 'certifications'];
+          if (sectionKeywords.some(keyword => labelLower.includes(keyword))) {
+            // Skip this line - it's a section score that shouldn't be displayed
+            return;
+          }
+        } else if (naMatch) {
+          // Check for N/A patterns (e.g., "Experience: N/A (This is a fresher resume...)")
+          const [, label] = naMatch;
+          const labelLower = label.toLowerCase();
+          
+          // Skip all section score patterns with N/A (section-by-section like Experience, Header, etc.)
+          const sectionKeywords = ['experience', 'header', 'summary', 'skills', 'education', 'projects', 'achievements', 'certifications'];
+          if (sectionKeywords.some(keyword => labelLower.includes(keyword))) {
+            // Skip this line - it's a section score that shouldn't be displayed
+            return;
+          }
+        }
+        
         if (!inList) {
           formattedLines.push(
             '<ol style="list-style:decimal; padding-left:22px; margin:0;">'
@@ -163,7 +210,6 @@ class EmailService {
           inList = true;
           listType = "ol";
         }
-        const content = trimmed.replace(/^\d+\.\s/, "");
         formattedLines.push(
           `<li style="margin:8px 0; font-weight:400; font-size:14px; font-family:${this.systemFont}; color:#475569; line-height:1.9; text-align:left;">${content}</li>`
         );
@@ -194,8 +240,10 @@ class EmailService {
         }
       } else {
         // Not in list - just add paragraph
-        // Check for inline score patterns (like "Overall Score: 8/10" or "Overall Score: 2.5/10")
-        const scoreMatch = trimmed.match(/^(.+?):\s*([\d.]+)\/(\d+)$/);
+        // Check for inline score patterns (like "Overall Score: 8/10" or "Experience: 0/10 (Not Applicable)" or "Experience: N/A")
+        // Match score patterns with optional text after (e.g., "Experience: 0/10 (Not Applicable)")
+        const scoreMatch = trimmed.match(/^(.+?):\s*([\d.]+)\/(\d+)/);
+        const naMatch = trimmed.match(/^(.+?):\s*(N\/A|N\/A\s|not applicable|not scored)/i);
       if (scoreMatch) {
           const [, label] = scoreMatch;
         const labelLower = label.toLowerCase();
@@ -204,15 +252,35 @@ class EmailService {
           if (labelLower.includes("overall") || labelLower.includes("score")) {
             return;
         } else {
-          // Skip other score patterns (section-by-section like Experience, Header, etc.)
+          // Skip all section score patterns (section-by-section like Experience, Header, etc.)
+          // This includes patterns like "Experience: 0/10 (Not Applicable)"
           const sectionKeywords = ['experience', 'header', 'summary', 'skills', 'education', 'projects', 'achievements', 'certifications'];
-          if (!sectionKeywords.some(keyword => labelLower.includes(keyword))) {
+          if (sectionKeywords.some(keyword => labelLower.includes(keyword))) {
+            // Skip this line - it's a section score that shouldn't be displayed
+            return;
+          } else {
             // If it's not a known section, treat as regular paragraph
             formattedLines.push(
                 `<p style="margin:0 0 24px; font-weight:400; font-size:14px; font-family:${this.systemFont}; color:#475569; line-height:1.75; text-align:left;">${trimmed}</p>`
             );
           }
         }
+      } else if (naMatch) {
+          // Check for N/A patterns (e.g., "Experience: N/A (This is a fresher resume...)")
+          const [, label] = naMatch;
+          const labelLower = label.toLowerCase();
+          
+          // Skip all section score patterns with N/A (section-by-section like Experience, Header, etc.)
+          const sectionKeywords = ['experience', 'header', 'summary', 'skills', 'education', 'projects', 'achievements', 'certifications'];
+          if (sectionKeywords.some(keyword => labelLower.includes(keyword))) {
+            // Skip this line - it's a section score that shouldn't be displayed
+            return;
+          } else {
+            // If it's not a known section, treat as regular paragraph
+            formattedLines.push(
+                `<p style="margin:0 0 24px; font-weight:400; font-size:14px; font-family:${this.systemFont}; color:#475569; line-height:1.75; text-align:left;">${trimmed}</p>`
+            );
+          }
       } else {
         formattedLines.push(
             `<p style="margin:0 0 24px; font-weight:400; font-size:14px; font-family:${this.systemFont}; color:#475569; line-height:1.75; text-align:left;">${trimmed}</p>`
