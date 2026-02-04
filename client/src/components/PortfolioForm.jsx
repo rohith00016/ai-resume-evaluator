@@ -66,8 +66,9 @@ const PortfolioForm = () => {
       return response;
     };
 
+    let loadingToast = null;
     try {
-      const loadingToast = toast.loading("Analyzing your portfolio...");
+      loadingToast = toast.loading("Analyzing your portfolio...");
       const response = await doSubmit();
       toast.dismiss(loadingToast);
       // Success handled silently - no toast
@@ -80,6 +81,10 @@ const PortfolioForm = () => {
         feedbackEmail: "",
       });
     } catch (error) {
+      // Dismiss loading toast before showing error
+      if (loadingToast) {
+        toast.dismiss(loadingToast);
+      }
       showErrorToast(error, "Failed to submit portfolio");
     } finally {
       setLoading(false);

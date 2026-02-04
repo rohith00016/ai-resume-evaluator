@@ -86,8 +86,9 @@ const ResumeForm = () => {
       return response;
     };
 
+    let loadingToast = null;
     try {
-      const loadingToast = toast.loading("Evaluating your resume...");
+      loadingToast = toast.loading("Evaluating your resume...");
       const response = await doSubmit();
       toast.dismiss(loadingToast);
       // Success handled silently - no toast
@@ -98,6 +99,10 @@ const ResumeForm = () => {
       const fileInput = document.getElementById("resume");
       if (fileInput) fileInput.value = "";
     } catch (error) {
+      // Dismiss loading toast before showing error
+      if (loadingToast) {
+        toast.dismiss(loadingToast);
+      }
       showErrorToast(error, "Failed to submit resume");
     } finally {
       setLoading(false);

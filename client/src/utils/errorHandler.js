@@ -6,18 +6,33 @@ import toast from "react-hot-toast";
  * @returns {string} - User-friendly error message
  */
 export const getErrorMessage = (error) => {
+  // Handle null or undefined
+  if (!error) {
+    return "An unexpected error occurred.";
+  }
+
+  // Handle string errors
+  if (typeof error === "string") {
+    return error;
+  }
+
   // Handle axios errors
   if (error.response) {
     const { data, status } = error.response;
 
     // Handle validation errors (array of messages)
-    if (data.details && Array.isArray(data.details)) {
+    if (data && data.details && Array.isArray(data.details)) {
       return data.details.join(", ");
     }
 
     // Handle single error message
-    if (data.error) {
-      return data.error;
+    if (data && typeof data === "object") {
+      if (data.error && typeof data.error === "string") {
+        return data.error;
+      }
+      if (data.message && typeof data.message === "string") {
+        return data.message;
+      }
     }
 
     // Handle status code specific messages
@@ -41,7 +56,7 @@ export const getErrorMessage = (error) => {
       case 503:
         return "Service temporarily unavailable. Please try again later.";
       default:
-        return data.message || "An error occurred. Please try again.";
+        return "An error occurred. Please try again.";
     }
   }
 
@@ -50,8 +65,13 @@ export const getErrorMessage = (error) => {
     return "Network error. Please check your connection.";
   }
 
-  // Handle other errors
-  return error.message || "An unexpected error occurred.";
+  // Handle error objects with message property
+  if (error.message && typeof error.message === "string") {
+    return error.message;
+  }
+
+  // Fallback for any other error format
+  return "An unexpected error occurred. Please try again.";
 };
 
 /**
