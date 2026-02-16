@@ -4,11 +4,10 @@ class AIService {
   constructor() {
     this.genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
     // Primary model (can be configured via env, default to flash-lite)
-    this.primaryModelName = process.env.GEMINI_MODEL || "gemini-2.5-pro";
+    this.primaryModelName = process.env.GEMINI_MODEL || "gemini-2.5-flash";
     // Fallback models to try if primary model quota is exceeded
     this.fallbackModels = [
-      "gemini-2.5-flash",
-      "gemini-3-flash",
+      "gemini-2.5-flash-lite",
     ];
     this.currentModelName = this.primaryModelName;
     this.model = this.genAI.getGenerativeModel({ model: this.currentModelName });
