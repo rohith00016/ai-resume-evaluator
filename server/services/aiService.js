@@ -92,7 +92,10 @@ WHAT TO LOOK FOR:
 - Specificity: Concrete examples rather than generic statements
 - Professional Presentation: Consistent formatting and professional language
 - Technical Depth: Appropriate level of technical detail for the role
-- Links and Contact: All provided links should be properly formatted
+- Links and Contact: All provided links should be properly formatted and clickable
+  * IMPORTANT: Text labels like "Email," "GitHub," "LinkedIn," "Portfolio," "Live Demo," and "Source Code" are perfectly acceptable and often preferred for better UX
+  * Do NOT require explicit URLs in the text - clickable labels are sufficient
+  * Only flag links if they are broken or non-functional
 - Education Section: Must be present with basic degree and institution information
 
 WHAT TO FLAG:
@@ -101,6 +104,7 @@ WHAT TO FLAG:
 - Irrelevant Information: Skills or experience unrelated to the target role
 - Poor Formatting: Inconsistent style, hard to read layout
 - Broken or Missing Links: Non-functional portfolio or GitHub links
+- Note: Text labels for links (e.g., "Email," "GitHub," "LinkedIn") are perfectly acceptable as long as they are clickable - do not penalize for using labels instead of explicit URLs
 - Overly Long Descriptions: Verbose project or experience descriptions
 `;
 
@@ -117,6 +121,7 @@ Header Section (Weight: 15%)
 - Complete contact information (email, phone)
 - Professional links (LinkedIn, portfolio) present and properly formatted
 - All links should be clickable/valid format
+- Note: Text labels like "Email," "GitHub," "LinkedIn," "Portfolio" are acceptable as long as they are clickable links - explicit URLs in text are not required
 
 Summary/Objective (Weight: 10%)
 - Minimum 2 lines of personalized content
@@ -163,6 +168,7 @@ Portfolio (Weight: 5%)
       - Complete contact information
       - LinkedIn and GitHub links present and properly formatted
       - All links should be clickable/valid
+      - Note: Text labels like "Email," "GitHub," "LinkedIn," "Portfolio," "Live Demo," and "Source Code" are acceptable as long as they are clickable links - explicit URLs in text are not required
 
       Summary/Objective (Weight: 10%)
       - 2-3 lines maximum, focused and specific
@@ -217,6 +223,7 @@ Header Section (Weight: 15%)
 - Complete contact information
 - LinkedIn and GitHub links properly formatted
 - All links must be clickable
+- Note: Text labels like "Email," "GitHub," "LinkedIn," "Portfolio," "Live Demo," and "Source Code" are acceptable as long as they are clickable links - explicit URLs in text are not required
 
 Summary/Objective (Weight: 10%)
 - Brief, role-specific summary
