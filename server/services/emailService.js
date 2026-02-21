@@ -49,20 +49,47 @@ class EmailService {
       .replace(/\*([^*]+)\*/g, "$1")
       .trim();
 
-    const lines = cleaned.split("\n").filter((line) => line.trim());
+    const lines = cleaned.split("\n");
     const formattedLines = [];
     let inList = false;
+    let listType = "ol"; // Track list type: "ol" for ordered, "ul" for unordered
+    let consecutiveEmptyLines = 0;
+    let lastListItemIndex = -1;
+    let lastListItemContent = null; // Track if we need to close last list item
 
-    lines.forEach((line) => {
+    // First pass: identify all list items to know when lists should continue
+    const listItemIndices = new Set();
+    lines.forEach((line, index) => {
       const trimmed = line.trim();
+      if (trimmed.match(/^[•\-\*\u2022\u2023\u25E6]\s+/) || 
+          trimmed.match(/^[•\-\*]\s/) || 
+          trimmed.match(/^\d+\.\s/)) {
+        listItemIndices.add(index);
+      }
+    });
+
+    lines.forEach((line, index) => {
+      const trimmed = line.trim();
+      const isLastLine = index === lines.length - 1;
+      
+      // Check if there are more list items coming (look ahead up to 5 lines)
+      const hasMoreListItems = Array.from({length: Math.min(5, lines.length - index - 1)}, (_, i) => index + i + 1)
+        .some(i => listItemIndices.has(i));
+      
+      // Handle empty lines - allow one empty line within lists, but close on multiple
       if (!trimmed) {
-        if (inList) {
-          formattedLines.push("</ul>");
+        consecutiveEmptyLines++;
+        // Only close list if multiple empty lines AND no more list items coming
+        if (consecutiveEmptyLines > 2 && inList && !hasMoreListItems) {
+          formattedLines.push(`</${listType}>`);
           inList = false;
+        } else if (consecutiveEmptyLines <= 1) {
+          formattedLines.push("<br>");
         }
-        formattedLines.push("<br>");
         return;
       }
+      
+      consecutiveEmptyLines = 0; // Reset counter on non-empty line
 
       // Detect headers (lines ending with :)
       if (
@@ -75,21 +102,32 @@ class EmailService {
         if (headerText.includes("section-by-section") || headerText.includes("section by section")) {
           return;
         }
+        // Skip "Portfolio Analysis Summary" header (shown in different format)
+        if (headerText.includes("portfolio analysis summary")) {
+          return;
+        }
+        // Close list before header
         if (inList) {
-          formattedLines.push("</ul>");
+          formattedLines.push(`</${listType}>`);
           inList = false;
         }
         formattedLines.push(
-          `<div style="font:600 16px ${this.systemFont}; color:#111827; margin:20px 0 12px; padding-bottom:8px; border-bottom:2px solid #E5E7EB;">${trimmed.slice(0, -1)}</div>`
+          `<div style="font-weight:600; font-size:15px; font-family:${this.systemFont}; color:#0F172A; margin-bottom:12px; text-align:left;">${trimmed.slice(0, -1)}</div>`
         );
         return;
       }
 
-      // Detect bullet points
-      if (trimmed.match(/^[•\-\*]\s/)) {
-        const content = trimmed.replace(/^[•\-\*]\s/, "");
+      // Detect bullet points - convert to numbered lists
+      // Match various bullet formats: •, -, *, or Unicode bullets with optional spacing
+      if (trimmed.match(/^[•\-\*\u2022\u2023\u25E6]\s+/) || trimmed.match(/^[•\-\*]\s/)) {
+        const content = trimmed.replace(/^[•\-\*\u2022\u2023\u25E6]\s+/, "").replace(/^[•\-\*]\s/, "").trim();
+        if (!content) return; // Skip empty bullet points
+        
         // Skip section-by-section scores (bullet points with score pattern)
-        const scoreMatch = content.match(/^(.+?):\s*(\d+)\/(\d+)$/);
+        // Match score patterns even with additional text after (e.g., "Experience: 0/10 (N/A for this resume)" or "Experience: N/A")
+        const scoreMatch = content.match(/^(.+?):\s*([\d.]+)\/(\d+)/);
+        const naMatch = content.match(/^(.+?):\s*(N\/A|N\/A\s|not applicable|not scored)/i);
+        
         if (scoreMatch) {
           // Skip this line - it's a section-by-section score
           // Also check for common section names like Experience, Header, Skills, etc.
@@ -98,88 +136,165 @@ class EmailService {
           if (sectionKeywords.some(keyword => label.includes(keyword))) {
             return;
           }
-          return;
+          // Also skip overall score patterns
+          if (label.includes("overall") || label.includes("score")) {
+            return;
+          }
+        } else if (naMatch) {
+          // Check for N/A patterns (e.g., "Experience: N/A (This is a fresher resume...)")
+          const label = naMatch[1].toLowerCase();
+          const sectionKeywords = ['experience', 'header', 'summary', 'skills', 'education', 'projects', 'achievements', 'certifications'];
+          if (sectionKeywords.some(keyword => label.includes(keyword))) {
+            return;
+          }
         }
         if (!inList) {
           formattedLines.push(
-            '<ul style="list-style:none; padding-left:0; margin:12px 0;">'
+            '<ol style="list-style:decimal; padding-left:22px; margin:0;">'
           );
           inList = true;
+          listType = "ol";
+        }
+        // Close previous list item if it had additional content
+        if (lastListItemContent !== null) {
+          formattedLines.push('</li>');
+          lastListItemContent = null;
         }
         formattedLines.push(
-          `<li style="margin:8px 0; padding-left:20px; position:relative; font:400 14px ${this.systemFont}; color:#374151; line-height:1.7;">
-            <span style="position:absolute; left:0; color:#6B7280; font-weight:bold;">•</span>
-            ${content}
-          </li>`
+          `<li style="margin:8px 0; font-weight:400; font-size:14px; font-family:${this.systemFont}; color:#475569; line-height:1.9; text-align:left;">${content}</li>`
         );
+        lastListItemIndex = index;
         return;
       }
 
       // Detect numbered lists
       if (trimmed.match(/^\d+\.\s/)) {
+        const content = trimmed.replace(/^\d+\.\s/, "");
+        
+        // Check if this numbered list item is a section score pattern (e.g., "Experience: 0/10 (N/A for this resume)" or "Experience: N/A")
+        const scoreMatch = content.match(/^(.+?):\s*([\d.]+)\/(\d+)/);
+        const naMatch = content.match(/^(.+?):\s*(N\/A|N\/A\s|not applicable|not scored)/i);
+        
+        if (scoreMatch) {
+          const [, label] = scoreMatch;
+          const labelLower = label.toLowerCase();
+          
+          // Skip overall score display (shown in score box instead)
+          if (labelLower.includes("overall") || labelLower.includes("score")) {
+            return;
+          }
+          
+          // Skip all section score patterns (section-by-section like Experience, Header, etc.)
+          const sectionKeywords = ['experience', 'header', 'summary', 'skills', 'education', 'projects', 'achievements', 'certifications'];
+          if (sectionKeywords.some(keyword => labelLower.includes(keyword))) {
+            // Skip this line - it's a section score that shouldn't be displayed
+            return;
+          }
+        } else if (naMatch) {
+          // Check for N/A patterns (e.g., "Experience: N/A (This is a fresher resume...)")
+          const [, label] = naMatch;
+          const labelLower = label.toLowerCase();
+          
+          // Skip all section score patterns with N/A (section-by-section like Experience, Header, etc.)
+          const sectionKeywords = ['experience', 'header', 'summary', 'skills', 'education', 'projects', 'achievements', 'certifications'];
+          if (sectionKeywords.some(keyword => labelLower.includes(keyword))) {
+            // Skip this line - it's a section score that shouldn't be displayed
+            return;
+          }
+        }
+        
         if (!inList) {
           formattedLines.push(
-            '<ul style="list-style:decimal; padding-left:24px; margin:12px 0;">'
+            '<ol style="list-style:decimal; padding-left:22px; margin:0;">'
           );
           inList = true;
+          listType = "ol";
         }
-        const content = trimmed.replace(/^\d+\.\s/, "");
         formattedLines.push(
-          `<li style="margin:6px 0; font:400 14px ${this.systemFont}; color:#374151; line-height:1.6;">${content}</li>`
+          `<li style="margin:8px 0; font-weight:400; font-size:14px; font-family:${this.systemFont}; color:#475569; line-height:1.9; text-align:left;">${content}</li>`
         );
         return;
       }
 
-      // Regular paragraph
+      // Regular paragraph - if in list and more items coming, add to current list item
+      // Otherwise, close list and add paragraph
       if (inList) {
-        formattedLines.push("</ul>");
+        if (hasMoreListItems && lastListItemIndex >= 0) {
+          // More list items coming - add paragraph content to the last list item
+          formattedLines.push(
+            `<p style="margin:8px 0 0; font-weight:400; font-size:14px; font-family:${this.systemFont}; color:#475569; line-height:1.75; text-align:left;">${trimmed}</p>`
+          );
+          lastListItemContent = true;
+        } else {
+          // Close last list item if open, then close list and add paragraph
+          if (lastListItemContent !== null) {
+            formattedLines.push('</li>');
+            lastListItemContent = null;
+          }
+          formattedLines.push(`</${listType}>`);
         inList = false;
-      }
-
-      // Check for inline score patterns (like "Overall Score: 8/10")
-      const scoreMatch = trimmed.match(/^(.+?):\s*(\d+)\/(\d+)$/);
+          lastListItemIndex = -1;
+          formattedLines.push(
+            `<p style="margin:0 0 24px; font-weight:400; font-size:14px; font-family:${this.systemFont}; color:#475569; line-height:1.75; text-align:left;">${trimmed}</p>`
+          );
+        }
+      } else {
+        // Not in list - just add paragraph
+        // Check for inline score patterns (like "Overall Score: 8/10" or "Experience: 0/10 (Not Applicable)" or "Experience: N/A")
+        // Match score patterns with optional text after (e.g., "Experience: 0/10 (Not Applicable)")
+        const scoreMatch = trimmed.match(/^(.+?):\s*([\d.]+)\/(\d+)/);
+        const naMatch = trimmed.match(/^(.+?):\s*(N\/A|N\/A\s|not applicable|not scored)/i);
       if (scoreMatch) {
-        const [, label, scoreStr, maxStr] = scoreMatch;
-        const score = parseInt(scoreStr);
-        const max = parseInt(maxStr);
+          const [, label] = scoreMatch;
         const labelLower = label.toLowerCase();
         
-        // Only show overall score, skip section-by-section scores
-        if (labelLower.includes("overall")) {
-          // Determine color based on score (0-4: red, 5-7: yellow, 8-10: green)
-          let scoreColor = '#374151'; // default gray
-          if (score >= 8) {
-            scoreColor = '#059669'; // green
-          } else if (score >= 5) {
-            scoreColor = '#D97706'; // yellow/amber
-          } else {
-            scoreColor = '#DC2626'; // red
-          }
-          
-          formattedLines.push(
-            `<p style="margin:16px 0; font:600 15px ${this.systemFont}; color:#111827; padding-bottom:8px; border-bottom:1px solid #E5E7EB;">
-              <span style="color:#111827;">${label}:</span> <span style="color:${scoreColor}; font-weight:700;">${score}/${max}</span>
-            </p>`
-          );
+          // Skip overall score display (shown in score box instead) - handle all variations
+          if (labelLower.includes("overall") || labelLower.includes("score")) {
+            return;
         } else {
-          // Skip other score patterns (section-by-section like Experience, Header, etc.)
+          // Skip all section score patterns (section-by-section like Experience, Header, etc.)
+          // This includes patterns like "Experience: 0/10 (Not Applicable)"
           const sectionKeywords = ['experience', 'header', 'summary', 'skills', 'education', 'projects', 'achievements', 'certifications'];
-          if (!sectionKeywords.some(keyword => labelLower.includes(keyword))) {
+          if (sectionKeywords.some(keyword => labelLower.includes(keyword))) {
+            // Skip this line - it's a section score that shouldn't be displayed
+            return;
+          } else {
             // If it's not a known section, treat as regular paragraph
             formattedLines.push(
-              `<p style="margin:12px 0; font:400 14px ${this.systemFont}; color:#374151; line-height:1.7;">${trimmed}</p>`
+                `<p style="margin:0 0 24px; font-weight:400; font-size:14px; font-family:${this.systemFont}; color:#475569; line-height:1.75; text-align:left;">${trimmed}</p>`
             );
           }
         }
+      } else if (naMatch) {
+          // Check for N/A patterns (e.g., "Experience: N/A (This is a fresher resume...)")
+          const [, label] = naMatch;
+          const labelLower = label.toLowerCase();
+          
+          // Skip all section score patterns with N/A (section-by-section like Experience, Header, etc.)
+          const sectionKeywords = ['experience', 'header', 'summary', 'skills', 'education', 'projects', 'achievements', 'certifications'];
+          if (sectionKeywords.some(keyword => labelLower.includes(keyword))) {
+            // Skip this line - it's a section score that shouldn't be displayed
+            return;
+          } else {
+            // If it's not a known section, treat as regular paragraph
+            formattedLines.push(
+                `<p style="margin:0 0 24px; font-weight:400; font-size:14px; font-family:${this.systemFont}; color:#475569; line-height:1.75; text-align:left;">${trimmed}</p>`
+            );
+          }
       } else {
         formattedLines.push(
-          `<p style="margin:12px 0; font:400 14px ${this.systemFont}; color:#374151; line-height:1.7;">${trimmed}</p>`
+            `<p style="margin:0 0 24px; font-weight:400; font-size:14px; font-family:${this.systemFont}; color:#475569; line-height:1.75; text-align:left;">${trimmed}</p>`
         );
+        }
       }
     });
 
+    // Close any open list item and list
+    if (lastListItemContent !== null) {
+      formattedLines.push('</li>');
+    }
     if (inList) {
-      formattedLines.push("</ul>");
+      formattedLines.push(`</${listType}>`);
     }
 
     return formattedLines.join("");
@@ -247,60 +362,77 @@ class EmailService {
       attempt: retryCount + 1,
     });
 
-    // Build robust, responsive (email-safe) HTML using tables and inline styles
-    this.systemFont = "-apple-system, Segoe UI, Roboto, Arial, sans-serif";
+    // Build modern, responsive (email-safe) HTML using tables and inline styles
+    this.systemFont = "'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, Arial, sans-serif";
     const border = "#E5E7EB";
-    const bg = "#F9FAFB";
+    const bg = "#F3F4F6";
+    const greenColor = "#22C55E";
+    
+    // Score colors for progress bar
+    const getScoreColor = (score) => {
+      const numScore = Number(score);
+      if (numScore >= 8) return "#059669";
+      if (numScore >= 5) return "#D97706";
+      return "#DC2626";
+    };
 
-    const resumeScoreBlock = hasResumeFeedback
+    // Score block - single score display (email-safe)
+    const scoreBlock = hasResumeFeedback
       ? `
             <tr>
-              <td style="padding:14px 0;">
-                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid ${border}; border-radius:8px; background:#FFFFFF;">
+              <td style="padding:0 48px 40px; background:#FFFFFF;" align="center">
+                <table role="presentation" width="360" cellpadding="0" cellspacing="0" style="border:1px solid ${greenColor}; background:#FFFFFF; max-width:360px;">
                   <tr>
-                    <td style="padding:18px 20px;">
-                      <div style="font:600 13px ${this.systemFont}; color:#6B7280; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px;">Resume Score</div>
-                      <div style="margin:0 0 12px; font:700 32px ${this.systemFont}; color:#111827; line-height:1;">${resumeScore}/10</div>
-                      <div style="height:6px; background:#F3F4F6; border-radius:3px; overflow:hidden;">
-                        <div style="height:6px; width:${Math.max(
+                    <td style="padding:32px 28px; text-align:center;">
+                      <div style="font-weight:500; font-size:9px; font-family:${this.systemFont}; color:#475569; text-transform:uppercase; letter-spacing:1px; margin-bottom:16px;">Resume Score</div>
+                      <div style="font-weight:700; font-size:48px; font-family:${this.systemFont}; color:#111827; line-height:1; margin-bottom:20px;">${resumeScore}<span style="font-weight:400; font-size:28px; color:#9CA3AF;">/10</span></div>
+                      <table role="presentation" width="220" cellpadding="0" cellspacing="0" style="margin:0 auto;">
+                        <tr>
+                          <td style="height:6px; background:#E5E7EB; padding:0;">
+                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                              <tr>
+                                <td style="height:6px; width:${Math.max(
                           0,
                           Math.min(100, (Number(resumeScore) / 10) * 100)
-                        )}%; background:#111827;"></div>
-                      </div>
+                                )}%; background:${greenColor}; padding:0;"></td>
+                                <td style="height:6px; background:#E5E7EB; padding:0;"></td>
+                              </tr>
+                            </table>
+                          </td>
+                        </tr>
+                      </table>
                     </td>
                   </tr>
                 </table>
               </td>
             </tr>`
-      : "";
-
-    const portfolioScoreBlock = hasPortfolioFeedback
+      : hasPortfolioFeedback
       ? `
             <tr>
-              <td style="padding:4px 0 14px;">
-                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid ${border}; border-radius:8px; background:#FFFFFF;">
+              <td style="padding:0 48px 40px; background:#FFFFFF;" align="center">
+                <table role="presentation" width="360" cellpadding="0" cellspacing="0" style="border:1px solid ${greenColor}; background:#FFFFFF; max-width:360px;">
                   <tr>
-                    <td style="padding:18px 20px;">
-                      <div style="font:600 13px ${this.systemFont}; color:#6B7280; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px;">Portfolio Score</div>
-                      <div style="margin:0 0 12px; font:700 32px ${this.systemFont}; color:#111827; line-height:1;">${portfolioScore}/10</div>
-                      <div style="height:6px; background:#F3F4F6; border-radius:3px; overflow:hidden;">
-                        <div style="height:6px; width:${Math.max(
+                    <td style="padding:32px 28px; text-align:center;">
+                      <div style="font-weight:500; font-size:9px; font-family:${this.systemFont}; color:#475569; text-transform:uppercase; letter-spacing:1px; margin-bottom:16px;">Portfolio Score</div>
+                      <div style="font-weight:700; font-size:48px; font-family:${this.systemFont}; color:#111827; line-height:1; margin-bottom:20px;">${portfolioScore}<span style="font-weight:400; font-size:28px; color:#9CA3AF;">/10</span></div>
+                      <table role="presentation" width="220" cellpadding="0" cellspacing="0" style="margin:0 auto;">
+                        <tr>
+                          <td style="height:6px; background:#E5E7EB; padding:0;">
+                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                              <tr>
+                                <td style="height:6px; width:${Math.max(
                           0,
                           Math.min(100, (Number(portfolioScore) / 10) * 100)
-                        )}%; background:#111827;"></div>
-                      </div>
+                                )}%; background:${greenColor}; padding:0;"></td>
+                                <td style="height:6px; background:#E5E7EB; padding:0;"></td>
+                              </tr>
+                            </table>
+                          </td>
+                        </tr>
+                      </table>
                     </td>
                   </tr>
                 </table>
-              </td>
-            </tr>`
-      : "";
-
-    const linkBlock = url
-      ? `
-            <tr>
-              <td style="padding-top:12px;">
-                <a href="${url}" target="_blank" style="display:inline-block; background:#111827; color:#ffffff; text-decoration:none; font:600 14px ${this.systemFont}; padding:12px 20px; border-radius:6px;">View ${evaluationType}</a>
               </td>
             </tr>`
       : "";
@@ -314,32 +446,40 @@ class EmailService {
           <title>${evaluationType} Evaluation</title>
         </head>
         <body style="margin:0; padding:0; background:${bg};">
-          <div style="display:none; max-height:0; overflow:hidden; opacity:0;">Your ${evaluationType.toLowerCase()} feedback is ready</div>
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${bg};">
             <tr>
-              <td align="center" style="padding:24px 12px;">
-                <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:600px; background:#ffffff; border-radius:8px; overflow:hidden; border:1px solid ${border};">
+              <td align="center" style="padding:60px 20px;">
+                <table role="presentation" width="650" cellpadding="0" cellspacing="0" style="width:650px; max-width:650px; background:#FFFFFF; position:relative;">
+                  <!-- Header -->
                   <tr>
-                    <td style="background:#FFFFFF; padding:24px 24px 20px; border-bottom:1px solid ${border};">
-                      <div style="font:700 20px ${this.systemFont}; color:#111827; margin-bottom:4px;">${evaluationType} Evaluation</div>
-                      <div style="font:400 14px ${this.systemFont}; color:#6B7280;">Hello ${name}, here are your results</div>
+                    <td style="padding:48px 48px 24px; text-align:center; background:#FFFFFF;">
+                      <img src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/guvi-logo-gLpzR6WIaPPfUZsIzGsPLsTKzkxgq2.png" alt="GUVI Logo" style="max-width:120px; height:auto; margin-bottom:24px; display:block; margin-left:auto; margin-right:auto;">
+                      <div style="font-weight:400; font-size:15px; font-family:${this.systemFont}; color:#64748B; margin-bottom:8px;">Hello <span style="color:${greenColor};">${name}</span>,</div>
+                      <div style="font-weight:400; font-size:14px; font-family:${this.systemFont}; color:#475569;">Your ${evaluationType.toLowerCase()} has been evaluated</div>
                     </td>
                   </tr>
+                  
+                  <!-- Score Section -->
+                  ${scoreBlock}
+                  
+                  <!-- Detailed Feedback Section -->
                   <tr>
-                    <td style="padding:24px;">
-                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-                        ${resumeScoreBlock}
-                        ${portfolioScoreBlock}
-                        <tr>
-                          <td style="padding-top:20px;">
-                            <div style="font:600 16px ${this.systemFont}; color:#111827; margin-bottom:16px; padding-bottom:12px; border-bottom:2px solid ${border};">Detailed Feedback</div>
-                            <div style="font:400 14px ${this.systemFont}; color:#374151; line-height:1.7;">
-                              ${this.formatFeedbackForEmail(feedback)}
-                            </div>
-                          </td>
-                        </tr>
-                        ${linkBlock}
-                      </table>
+                    <td style="padding:0 48px 48px; background:#FFFFFF; text-align:left;">
+                      <div style="font-weight:700; font-size:18px; font-family:${this.systemFont}; color:#0F172A; margin-bottom:20px; text-align:left;">Detailed Feedback</div>
+                      
+                      <div style="font-weight:400; font-size:14px; font-family:${this.systemFont}; color:#475569; line-height:1.75; text-align:left;">
+                        ${this.formatFeedbackForEmail(feedback)}
+                      </div>
+                      
+                      <!-- Notice Section - Direct content to prevent Gmail collapsing -->
+                      <div style="margin-top:32px; padding-top:24px; border-top:1px solid ${border};">
+                        <p style="margin:0 0 8px; font-weight:400; font-size:14px; font-family:${this.systemFont}; color:#111827; line-height:1.6; text-align:left;">
+                          Kindly rework as per the above feedback and submit it for review in the same form within 2 days.
+                        </p>
+                        <p style="margin:0; font-weight:400; font-size:11px; font-family:${this.systemFont}; color:#94A3B8; line-height:1.4; text-align:left;">
+                          This is an auto-generated email. Please do not reply.
+                        </p>
+                      </div>
                     </td>
                   </tr>
                 </table>
@@ -350,22 +490,18 @@ class EmailService {
       </html>`;
 
     const textContent = `
-      ${evaluationType} Evaluation Results
-      
       Hello ${name},
       
-      Here's your detailed feedback for your ${evaluationType.toLowerCase()} evaluation:
+      Your ${evaluationType.toLowerCase()} has been evaluated.
       
-      Overall Score: ${score}
+      Score: ${score}
       
-      Detailed Analysis:
+      Detailed Feedback:
       ${feedback}
       
-      ${url ? `View your ${evaluationType.toLowerCase()}: ${url}` : ""}
+      Kindly rework as per the above feedback and submit it for review in the same form within 2 days.
       
-      This evaluation was generated using advanced AI technology to provide objective feedback.
-      
-      © ${new Date().getFullYear()} AI Resume Evaluator. All rights reserved.
+      This is an auto-generated email. Please do not reply.
     `;
 
     const emailParams = {

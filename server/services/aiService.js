@@ -3,7 +3,30 @@ const { GoogleGenerativeAI } = require("@google/generative-ai");
 class AIService {
   constructor() {
     this.genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    this.model = this.genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    // Primary model (can be configured via env, default to flash-lite)
+    this.primaryModelName = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+    // Fallback models to try if primary model quota is exceeded
+    this.fallbackModels = [
+      "gemini-2.5-flash-lite",
+    ];
+    this.currentModelName = this.primaryModelName;
+    this.model = this.genAI.getGenerativeModel({ model: this.currentModelName });
+    this.quotaExceededModels = new Set(); // Track models that have exceeded quota
+  }
+
+  switchToFallbackModel() {
+    const availableModel = this.fallbackModels.find(
+      (model) => !this.quotaExceededModels.has(model)
+    );
+
+    if (availableModel) {
+      this.currentModelName = availableModel;
+      this.model = this.genAI.getGenerativeModel({ model: this.currentModelName });
+      console.log(`[AIService] Switched to fallback model: ${this.currentModelName}`);
+      return true;
+    }
+
+    return false;
   }
 
   async makeRequestWithRetry(prompt, maxRetries = 3) {
@@ -12,10 +35,26 @@ class AIService {
         const result = await this.model.generateContent([prompt]);
         return result.response.text();
       } catch (error) {
-        console.error(`AI API attempt ${attempt} failed:`, error.message);
+        console.error(`[AIService] API attempt ${attempt} failed (model: ${this.currentModelName}):`, error.message);
 
-        if (error.status === 429 && error.errorDetails) {
-          const retryDelayInfo = error.errorDetails.find(
+        const isQuotaError =
+          error.status === 429 ||
+          error.message?.toLowerCase().includes("quota") ||
+          error.message?.toLowerCase().includes("429");
+
+        if (isQuotaError) {
+          // Mark current model as quota exceeded
+          this.quotaExceededModels.add(this.currentModelName);
+          console.log(`[AIService] Quota exceeded for model: ${this.currentModelName}`);
+
+          if (this.switchToFallbackModel()) {
+            console.log(`[AIService] Retrying with fallback model: ${this.currentModelName}`);
+            attempt--; // Retry with new model without counting as failed attempt
+            continue;
+          }
+
+          // No more fallback models available
+          const retryDelayInfo = error.errorDetails?.find(
             (e) => e["@type"] === "type.googleapis.com/google.rpc.RetryInfo"
           );
           const delayMs = retryDelayInfo
@@ -23,7 +62,7 @@ class AIService {
             : 30000 * attempt;
 
           console.log(
-            `Quota exceeded, retrying after ${delayMs}ms (Attempt ${attempt}/${maxRetries})`
+            `[AIService] All models quota exceeded, retrying after ${delayMs}ms (Attempt ${attempt}/${maxRetries})`
           );
           await new Promise((resolve) => setTimeout(resolve, delayMs));
         } else if (attempt === maxRetries) {
@@ -31,29 +70,29 @@ class AIService {
             `Max retries exceeded for AI API request: ${error.message}`
           );
         } else {
-          // For other errors, wait before retrying
           await new Promise((resolve) => setTimeout(resolve, 5000 * attempt));
         }
       }
     }
-    throw new Error("Max retries exceeded for AI API request");
   }
 
   extractScore(text) {
     const patterns = [
-      /overall\s*score\s*[:=\-]?\s*(\d+(\.\d+)?)/i,
-      /score\s*[:=\-]?\s*(\d+(\.\d+)?)/i,
-      /(\d+(\.\d+)?)\s*\/\s*10/i,
-      /(\d+(\.\d+)?)\s*out\s*of\s*10/i,
+      /overall\s*score\s*[:=\-]?\s*(\d+(?:\.\d+)?)\s*\/\s*10/i, // "Overall Score: X/10"
+      /overall\s*score\s*[:=\-]?\s*(\d+(?:\.\d+)?)(?!\s*\/)/i, // "Overall Score: X" (without /10)
+      /(\d+(?:\.\d+)?)\s*\/\s*10/i, // Any "X/10" pattern
     ];
 
     for (const pattern of patterns) {
       const match = text.match(pattern);
       if (match) {
         const score = parseFloat(match[1]);
-        return score >= 0 && score <= 10 ? score : null;
+        if (score >= 0 && score <= 10) {
+          return score;
+        }
       }
     }
+
     return null;
   }
 
@@ -61,11 +100,41 @@ class AIService {
     const baseInstructions = `
 You are an AI resume evaluator specializing in technical roles. Your task is to evaluate resumes against specific criteria and provide constructive feedback with scoring.
 
+CRITICAL FIRST STEP - DOCUMENT TYPE VALIDATION:
+Before evaluating, you MUST first determine if the submitted content is actually a RESUME/CV document:
+- A resume is a document intended for job applications that contains information about a candidate
+- MINIMUM REQUIREMENTS to be considered a resume: The document must have at least 2 of the following:
+  * Candidate's name (or identifier)
+  * Contact information (email, phone, or links)
+  * Skills section OR technical skills mentioned
+  * Work experience OR projects OR education
+  * Any structured information about the candidate's background
+- IMPORTANT: Be LENIENT in validation - if the document appears to be an attempt at a resume (even if poorly formatted or incomplete), treat it as a resume and provide evaluation feedback
+- Only reject if the content is clearly NOT a resume (e.g., it's a portfolio website HTML, a project repository README, a cover letter, random unrelated text, a blog post, or completely unrelated content)
+- If the submitted content is clearly NOT a resume, you MUST:
+  1. Give it an Overall Score of 0/10 (format it EXACTLY as "Overall Score: 0/10" at the beginning of your response)
+  2. Clearly state in the feedback that this is not a resume
+  3. Explain what type of document it appears to be instead
+  4. Provide guidance on what a resume should contain
+  5. Skip all other evaluation sections - DO NOT provide section-by-section scores, Strengths, Areas for Improvement, Missing Elements, or Recommendations
+  6. Your response should ONLY contain: "Overall Score: 0/10" followed by the explanation
+
+Only proceed with full evaluation if the content is confirmed to be a resume/CV document OR if it appears to be an attempt at creating a resume (even if incomplete or poorly formatted).
+
 GENERAL RULES:
 - Examples are Reference Only: All mentioned tools, platforms, and examples serve as guidance - they are NOT mandatory requirements
 - Fresher-Friendly: Candidates without experience can skip experience sections, but must demonstrate strong project portfolios
 - Scoring Scale: Use 1-10 scale for each section (1=Poor, 5=Average, 8=Good, 10=Excellent)
 - Constructive Feedback: Always provide specific, actionable improvement suggestions
+- Internal Scoring: Calculate section-by-section scores (Header, Summary, Skills, Projects, Experience, Education) internally to determine the Overall Score, but DO NOT include these section scores in your response output - only show the Overall Score
+
+CRITICAL EVALUATION APPROACH:
+- FIRST, identify what elements ARE ALREADY PRESENT in the resume before suggesting additions
+- ACKNOWLEDGE existing sections: If the resume already has a name, contact info, skills section, projects, education, etc., acknowledge these in your evaluation
+- DO NOT suggest adding elements that already exist - instead, suggest improvements to existing elements (e.g., "enhance your existing summary" instead of "add a summary")
+- Only list items in "Missing Elements" if they are truly absent from the resume
+- In "Areas for Improvement" and "Recommendations", focus on enhancing existing content rather than adding what's already there
+- Remember: PDF text extraction may lose formatting, but the content is still present - carefully analyze the text to identify all existing sections
 
 EVALUATION OUTPUT FORMAT:
 Provide your evaluation in this exact format:
@@ -73,18 +142,34 @@ Provide your evaluation in this exact format:
 Overall Score: X/10
 Role Alignment: [How well the resume matches the target role]
 
-Section-by-Section Scores:
-- Header: X/10
-- Summary: X/10
-- Skills: X/15
-- Projects: X/20
-- Experience: X/10 (if applicable)
-- Education: X/5
+Strengths:
+1. First strength point
+2. Second strength point
+3. Third strength point (if applicable)
 
-Strengths: [2-3 specific positive points]
-Areas for Improvement: [3-5 actionable suggestions]
-Missing Elements: [Critical components not present]
-Recommendations: [Specific next steps for improvement]
+Areas for Improvement:
+1. First improvement area (focus on enhancing existing content, not adding what's already there)
+2. Second improvement area
+3. Third improvement area
+4. Fourth improvement area (if applicable)
+5. Fifth improvement area (if applicable)
+
+Missing Elements:
+1. First missing element (ONLY list elements that are truly absent - carefully check the resume text before listing)
+2. Second missing element (if applicable)
+3. Continue listing critical missing items (if any - leave blank if all essential elements are present)
+
+Recommendations:
+1. First recommendation with clear next steps (acknowledge existing elements and suggest improvements, not additions of what already exists)
+2. Second recommendation
+3. Third recommendation
+4. Continue with additional recommendations as needed
+
+IMPORTANT FORMATTING RULES:
+- Use numbered lists (1., 2., 3., etc.) for all list sections, NOT bullet points
+- Do NOT add paragraphs between numbered list items - keep list items consecutive
+- If you need to add explanatory text, include it within the list item itself or as a note after the list
+- Keep each section's list items together without breaking them with paragraphs
 
 WHAT TO LOOK FOR:
 - Clarity and Organization: Information is easy to find and read
@@ -278,19 +363,21 @@ RESUME TO EVALUATE:
 ${resumeText}
 
 Please evaluate this resume following the exact format specified above. Make sure to include:
-1. Overall Score out of 10
-2. Section-by-section scores
-3. Strengths (2-3 points)
-4. Areas for improvement (3-5 actionable suggestions)
-5. Missing elements
-6. Specific recommendations
+1. Overall Score out of 10 (calculate this based on section-by-section evaluation internally, but DO NOT display section scores in your response)
+2. Strengths (2-3 points) - acknowledge what's already good
+3. Areas for improvement (3-5 actionable suggestions) - focus on enhancing existing content, not adding what's already there
+4. Missing elements - ONLY list items that are truly absent from the resume
+5. Specific recommendations - acknowledge existing elements and suggest improvements rather than additions
+
+CRITICAL: DO NOT include "Section-by-Section Scores" or any section score breakdown in your response. Calculate these scores internally to determine the Overall Score, but only display the Overall Score in your output. The section scores are for internal calculation only and should not appear in the feedback.
+
+IMPORTANT: Before suggesting any additions, carefully analyze the resume text to identify what elements ARE ALREADY PRESENT. PDF text extraction may lose formatting, but the content is still there. Do not suggest adding elements that already exist (e.g., if name and contact info are present, don't suggest adding them - instead suggest improvements to their presentation).
 
 Focus on helping the candidate improve their resume for better job market success while maintaining realistic expectations for their experience level.`;
 
     const feedback = await this.makeRequestWithRetry(aiPrompt);
     const score = this.extractScore(feedback);
-
-    return { feedback, score: score || 5.0 };
+    return { feedback, score: score ?? 5.0 };
   }
 
   async evaluatePortfolio(portfolioUrl, course) {
@@ -300,6 +387,7 @@ Focus on helping the candidate improve their resume for better job market succes
     try {
       const scrapeWebsite = require("./scraperService");
       const scrapeResult = await scrapeWebsite(portfolioUrl);
+      
       if (scrapeResult.success && scrapeResult.scrapedData.length > 0) {
         scrapedContent = scrapeResult.scrapedData
           .map((page) => {
@@ -320,18 +408,39 @@ Focus on helping the candidate improve their resume for better job market succes
             return `Page: ${page.page}\n\nVisible Texts:\n${texts}\n\nLinks:\n${links}\n\nImages:\n${images}`;
           })
           .join("\n\n---\n\n");
+      } else {
+        // Scraping attempted but no content found
+        console.warn(
+          `⚠️ Scraping returned no content for ${portfolioUrl}. Pages attempted: ${scrapeResult.totalPages}`
+        );
+        scrapedContent = `Scraping attempted but no meaningful content was extracted from the website. The website may be using advanced bot protection, require authentication, or have content that loads in a way that cannot be scraped automatically. Portfolio URL: ${portfolioUrl}`;
       }
     } catch (error) {
-      console.warn(
-        `Failed to scrape portfolio: ${portfolioUrl} — ${error.message}`
+      console.error(
+        `❌ Failed to scrape portfolio: ${portfolioUrl} — ${error.message}`,
+        error.stack
       );
-      scrapedContent = `Unable to scrape content due to: ${error.message}`;
+      scrapedContent = `Unable to scrape content from ${portfolioUrl} due to: ${error.message}. Please verify the URL is accessible and try again.`;
     }
 
     const aiPrompt = `
 ${evaluationCriteria}
 
 You are an AI portfolio evaluator. Evaluate the following portfolio website submitted by a ${course} student based on the comprehensive portfolio evaluation criteria.
+
+CRITICAL FIRST STEP - DOCUMENT TYPE VALIDATION:
+Before evaluating, you MUST first determine if the submitted content is actually a PORTFOLIO WEBSITE:
+- A portfolio website should be: a personal/professional website showcasing the developer's work, projects, skills, and contact information
+- It should contain: developer's name, projects with descriptions, skills section, contact information, links to GitHub/LinkedIn, and be a functional website
+- If the submitted content is NOT a portfolio website (e.g., it's a resume document, a project repository readme, a blog post, a company website, random text, or any other type of content), you MUST:
+  1. Give it an Overall Score of 0/10 (format it EXACTLY as "Overall Score: 0/10" at the beginning of your response)
+  2. Clearly state in the feedback that this is not a portfolio website
+  3. Explain what type of content it appears to be instead
+  4. Provide guidance on what a portfolio website should contain
+  5. Skip all other evaluation sections - DO NOT provide Portfolio Analysis Summary, Strengths, Areas for Improvement, Missing Elements, or Recommendations
+  6. Your response should ONLY contain: "Overall Score: 0/10" followed by the explanation
+
+Only proceed with full evaluation if the content is confirmed to be a portfolio website.
 
 PORTFOLIO URL:
 ${portfolioUrl}
@@ -435,7 +544,7 @@ RED FLAGS (Deductions):
 EVALUATION FORMAT:
 Overall Score: X/10
 
-PORTFOLIO ANALYSIS SUMMARY:
+Portfolio Analysis Summary:
 - Navigation Structure: [Describe what you found - routes, sections, etc.]
 - Skills Identified: [List technical skills found in content]
 - Projects Found: [Describe project sections, GitHub links, demo links]
@@ -445,27 +554,42 @@ PORTFOLIO ANALYSIS SUMMARY:
 - Link Behavior: [Summary of external vs internal links and target="_blank" usage]
 
 Strengths:
-- Bullet points listing 2-3 strong areas based on the criteria above
+1. First strength point
+2. Second strength point
+3. Third strength point (if applicable)
 
 Areas for Improvement:
-- Bullet points with 3–5 specific improvement suggestions based on missing criteria
-- If external links are missing target="_blank", specifically mention which types of links need this attribute
-- Note: Internal navigation links can open in same tab
+1. First improvement area
+2. Second improvement area
+3. Third improvement area
+4. Fourth improvement area (if applicable)
+5. Fifth improvement area (if applicable)
+Note: If external links are missing target="_blank", specifically mention which types of links need this attribute. Internal navigation links can open in same tab.
 
 Missing Elements:
-- List anything critical that’s missing (e.g., no contact form, no project explanations)
+1. First missing element
+2. Second missing element
+3. Continue listing critical missing items
 
 Recommendations:
-- Bullet points with clear next steps to improve this portfolio based on the evaluation criteria
-- For external link improvements, specify exactly which links need target="_blank" (e.g., "Update footer GitHub and LinkedIn links to use target='_blank'")
-- Internal navigation links are fine to open in same tab
+1. First recommendation with clear next steps
+2. Second recommendation
+3. Third recommendation
+4. Continue with additional recommendations as needed
+Note: For external link improvements, specify exactly which links need target="_blank" (e.g., "Update footer GitHub and LinkedIn links to use target='_blank'"). Internal navigation links are fine to open in same tab.
+
+IMPORTANT FORMATTING RULES:
+- Use numbered lists (1., 2., 3., etc.) for all list sections, NOT bullet points
+- Do NOT add paragraphs between numbered list items - keep list items consecutive
+- If you need to add explanatory text, include it within the list item itself or as a note after the list
+- Keep each section's list items together without breaking them with paragraphs
 
 Please evaluate thoroughly against these specific criteria and return only the formatted feedback.
 `;
 
     const feedback = await this.makeRequestWithRetry(aiPrompt);
     const score = this.extractScore(feedback);
-    return { feedback, score: score || 5.0 };
+    return { feedback, score: score ?? 5.0 };
   }
 }
 

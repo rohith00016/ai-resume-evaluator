@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: ai-resume-evaluator
+    env: node
+    buildCommand: npm install && PUPPETEER_CACHE_DIR=./node_modules/.cache/puppeteer npx puppeteer browsers install chrome
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PUPPETEER_CACHE_DIR
+        value: /opt/render/.cache/puppeteer
+
