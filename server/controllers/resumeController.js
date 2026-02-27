@@ -366,7 +366,7 @@ class ResumeController {
       const submittedBy = req.user.id;
 
       // Generate AI feedback for portfolio
-      const { feedback, score } = await aiService.evaluatePortfolio(
+      const { feedback, score, scrapingFailed } = await aiService.evaluatePortfolio(
         portfolioUrl,
         course
       );
@@ -380,6 +380,7 @@ class ResumeController {
         portfolioUrl,
         portfolioFeedback: feedback,
         portfolioScore: score,
+        ...(scrapingFailed && { scrapingFailed: true }),
         ...(feedbackEmail && { feedbackEmail }),
       });
 
