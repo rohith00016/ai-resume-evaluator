@@ -100,8 +100,10 @@ WHAT TO FLAG:
 - Missing Critical Sections: No projects for freshers, no contact info, no education section
 - Irrelevant Information: Skills or experience unrelated to the target role
 - Poor Formatting: Inconsistent style, hard to read layout
-- Broken or Missing Links: Non-functional portfolio or GitHub links
+- Broken or Missing Links: Only flag if NO URLs found - labeled links (e.g., "LinkedIn: https://...") are valid
 - Overly Long Descriptions: Verbose project or experience descriptions
+
+LINK RULE: Accept any URL format (plain, labeled, markdown). Look for LinkedIn, GitHub, portfolio, live app/demo URLs. Only flag missing if NO URLs present.
 `;
 
     switch (course) {
@@ -115,8 +117,7 @@ Required Sections & Scoring Criteria:
 Header Section (Weight: 15%)
 - Name and role clearly stated ("UI/UX Designer" or similar)
 - Complete contact information (email, phone)
-- Professional links (LinkedIn, portfolio) present and properly formatted
-- All links should be clickable/valid format
+- Professional links (LinkedIn, portfolio) - any URL format acceptable (labeled links are valid)
 
 Summary/Objective (Weight: 10%)
 - Minimum 2 lines of personalized content
@@ -136,7 +137,7 @@ Projects Section (Weight: 35%)
   * Tools and methodologies used
   * Design process or strategy mentioned
   * Measurable outcomes or impact (when possible)
-  * Clickable links to case studies, prototypes, or mockups
+  * Links to case studies, prototypes, or mockups
 
 Education (Weight: 10%)
 - Education section must be present
@@ -147,7 +148,7 @@ Certifications (Weight: 5%)
 - Relevant to design field
 
 Portfolio (Weight: 5%)
-- Must include clickable portfolio link
+- Must include portfolio link
 - Personal website preferred over generic platforms
 - Behance or Dribbble profiles are additional advantages`;
 
@@ -161,8 +162,7 @@ Portfolio (Weight: 5%)
       Header Section (Weight: 15%)
       - Name and role ("Full Stack Developer", "MERN Developer", etc.)
       - Complete contact information
-      - LinkedIn and GitHub links present and properly formatted
-      - All links should be clickable/valid
+      - LinkedIn and GitHub links present - any URL format acceptable (labeled links are valid)
 
       Summary/Objective (Weight: 10%)
       - 2-3 lines maximum, focused and specific
@@ -181,7 +181,7 @@ Portfolio (Weight: 5%)
         * 2-3 line clear description
         * Technologies and tools used explicitly mentioned
         * Developer's specific role and contributions
-        * GitHub repository links (must be clickable)
+        * GitHub repository links
         * Live demo links when available
         * Focus on functionality and technical implementation
 
@@ -201,7 +201,7 @@ Portfolio (Weight: 5%)
       - Focus on relevant programming/web development certifications
 
       GitHub Profile (Weight: 2%)
-      - Clickable GitHub link
+      - GitHub link present
       - Profile should show active contributions and repositories
       - README files and project documentation are advantages`;
 
@@ -215,8 +215,7 @@ Required Sections & Scoring Criteria:
 Header Section (Weight: 15%)
 - Name and role clearly stated
 - Complete contact information
-- LinkedIn and GitHub links properly formatted
-- All links must be clickable
+- LinkedIn and GitHub links - any URL format acceptable (labeled links are valid)
 
 Summary/Objective (Weight: 10%)
 - Brief, role-specific summary
