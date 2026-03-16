@@ -100,10 +100,8 @@ WHAT TO FLAG:
 - Missing Critical Sections: No projects for freshers, no contact info, no education section
 - Irrelevant Information: Skills or experience unrelated to the target role
 - Poor Formatting: Inconsistent style, hard to read layout
-- Broken or Missing Links: Only flag if NO URLs found - labeled links (e.g., "LinkedIn: https://...") are valid
+- Broken or Missing Links: Non-functional portfolio or GitHub links
 - Overly Long Descriptions: Verbose project or experience descriptions
-
-LINK RULE: Accept any URL format (plain, labeled, markdown). Look for LinkedIn, GitHub, portfolio, live app/demo URLs. Only flag missing if NO URLs present.
 `;
 
     switch (course) {
@@ -117,7 +115,8 @@ Required Sections & Scoring Criteria:
 Header Section (Weight: 15%)
 - Name and role clearly stated ("UI/UX Designer" or similar)
 - Complete contact information (email, phone)
-- Professional links (LinkedIn, portfolio) - any URL format acceptable (labeled links are valid)
+- Professional links (LinkedIn, portfolio) present and properly formatted
+- All links should be clickable/valid format
 
 Summary/Objective (Weight: 10%)
 - Minimum 2 lines of personalized content
@@ -137,7 +136,7 @@ Projects Section (Weight: 35%)
   * Tools and methodologies used
   * Design process or strategy mentioned
   * Measurable outcomes or impact (when possible)
-  * Links to case studies, prototypes, or mockups
+  * Clickable links to case studies, prototypes, or mockups
 
 Education (Weight: 10%)
 - Education section must be present
@@ -148,7 +147,7 @@ Certifications (Weight: 5%)
 - Relevant to design field
 
 Portfolio (Weight: 5%)
-- Must include portfolio link
+- Must include clickable portfolio link
 - Personal website preferred over generic platforms
 - Behance or Dribbble profiles are additional advantages`;
 
@@ -162,7 +161,8 @@ Portfolio (Weight: 5%)
       Header Section (Weight: 15%)
       - Name and role ("Full Stack Developer", "MERN Developer", etc.)
       - Complete contact information
-      - LinkedIn and GitHub links present - any URL format acceptable (labeled links are valid)
+      - LinkedIn and GitHub links present and properly formatted
+      - All links should be clickable/valid
 
       Summary/Objective (Weight: 10%)
       - 2-3 lines maximum, focused and specific
@@ -181,7 +181,7 @@ Portfolio (Weight: 5%)
         * 2-3 line clear description
         * Technologies and tools used explicitly mentioned
         * Developer's specific role and contributions
-        * GitHub repository links
+        * GitHub repository links (must be clickable)
         * Live demo links when available
         * Focus on functionality and technical implementation
 
@@ -201,7 +201,7 @@ Portfolio (Weight: 5%)
       - Focus on relevant programming/web development certifications
 
       GitHub Profile (Weight: 2%)
-      - GitHub link present
+      - Clickable GitHub link
       - Profile should show active contributions and repositories
       - README files and project documentation are advantages`;
 
@@ -215,7 +215,8 @@ Required Sections & Scoring Criteria:
 Header Section (Weight: 15%)
 - Name and role clearly stated
 - Complete contact information
-- LinkedIn and GitHub links - any URL format acceptable (labeled links are valid)
+- LinkedIn and GitHub links properly formatted
+- All links must be clickable
 
 Summary/Objective (Weight: 10%)
 - Brief, role-specific summary
@@ -293,25 +294,56 @@ Focus on helping the candidate improve their resume for better job market succes
       const scrapeWebsite = require("./scraperService");
       const scrapeResult = await scrapeWebsite(portfolioUrl);
       if (scrapeResult.success && scrapeResult.scrapedData.length > 0) {
+        // Helper function to truncate URLs if too long
+        const truncateUrl = (url, maxLength = 100) => {
+          if (!url || url.length <= maxLength) return url;
+          return url.substring(0, maxLength) + "...";
+        };
+
         scrapedContent = scrapeResult.scrapedData
           .map((page) => {
             const texts = page.content.visibleTexts
+              .slice(0, 200) // Limit text elements
               .map((item) => `${item.tag}: ${item.text}`)
               .join("\n");
+            
+            // Limit links to prevent token overflow
             const links = page.content.links
+              .slice(0, 100) // Limit to 100 links per page
               .map(
                 (link) =>
-                  `Link: ${link.text} (${link.href}) [Target: ${
+                  `Link: ${link.text.substring(0, 100)} (${truncateUrl(link.href, 150)}) [Target: ${
                     link.target || "none"
                   }]`
               )
               .join("\n");
+            
+            // Limit images significantly - only include first 10 images per page
+            // and truncate long URLs to prevent token overflow
             const images = page.content.images
-              .map((img) => `Image: ${img.src} (Alt: ${img.alt})`)
+              .slice(0, 10) // Limit to 10 images per page
+              .map((img) => {
+                const truncatedSrc = truncateUrl(img.src, 150);
+                const truncatedAlt = (img.alt || "").substring(0, 50);
+                return `Image: ${truncatedSrc} (Alt: ${truncatedAlt})`;
+              })
               .join("\n");
+            
             return `Page: ${page.page}\n\nVisible Texts:\n${texts}\n\nLinks:\n${links}\n\nImages:\n${images}`;
           })
           .join("\n\n---\n\n");
+        
+        // Limit total scraped content length to prevent token overflow
+        // Gemini free tier has ~250k tokens/min limit, so we'll limit to ~100k characters
+        // (roughly 25k tokens assuming ~4 chars per token)
+        const MAX_CONTENT_LENGTH = 100000;
+        if (scrapedContent.length > MAX_CONTENT_LENGTH) {
+          console.warn(
+            `⚠️ Scraped content too long (${scrapedContent.length} chars), truncating to ${MAX_CONTENT_LENGTH} chars`
+          );
+          scrapedContent = scrapedContent.substring(0, MAX_CONTENT_LENGTH) + 
+            `\n\n... (content truncated - original length: ${scrapedContent.length} characters)`;
+        }
       }
     } catch (error) {
       console.warn(

@@ -578,9 +578,9 @@ const scrapeWebsite = async (url) => {
       scrapedData.push({
         page: currentUrl,
         content: {
-          visibleTexts: texts.slice(0, 200), // Increased limit
-          links,
-          images,
+          visibleTexts: texts.slice(0, 200), // Limit text elements
+          links: links.slice(0, 150), // Limit links to prevent token overflow
+          images: images.slice(0, 15), // Limit images to prevent token overflow
           cssFiles,
           jsFiles,
         },
