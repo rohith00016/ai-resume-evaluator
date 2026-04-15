@@ -12,51 +12,50 @@ const scrapeWebsite = async (url) => {
   const scrapedData = [];
   const crawlDepth = new Map(); // Track depth for each URL
 
-  // Platform-specific scraping rules configuration
-  const PLATFORM_CONFIGS = {
-    behance: {
-      hostnames: ['behance.net', 'www.behance.net'],
-      // Profile URL pattern: behance.net/username
-      profilePattern: /^\/[^\/]+$/,
-      // Allowed URL patterns (regex)
-      allowedPatterns: [
-        /^\/[^\/]+$/, // Profile page: /username
-        /^\/[^\/]+\/gallery$/, // Profile gallery: /username/gallery
-        /^\/gallery\/[^\/]+/, // Project pages: /gallery/PROJECT_ID/...
-      ],
-      // Blocked URL patterns (regex) - these are platform navigation pages
-      blockedPatterns: [
-        /^\/about/,
-        /^\/blog/,
-        /^\/joblist/,
-        /^\/search/,
-        /^\/hire/,
-        /^\/pro/,
-        /^\/misc\//,
-        /^\/resources\//,
-        /^\//, // Root page
-      ],
-      maxDepth: 3, // Limit crawling depth for platform sites
-    },
-    // Easy to add more platforms in the future:
-    // dribbble: {
-    //   hostnames: ['dribbble.com', 'www.dribbble.com'],
-    //   profilePattern: /^\/[^\/]+$/,
-    //   allowedPatterns: [/^\/[^\/]+$/, /^\/shots\//],
-    //   blockedPatterns: [/^\/about/, /^\/contact/],
-    //   maxDepth: 2,
-    // },
-  };
 
+
+  // ─── FIX 1: Strip hash fragments & skip pure anchor links ───────────────────
   const getAbsoluteUrl = (base, relative) => {
     // Return null if relative is missing, undefined, null, or invalid
-    if (!relative || relative === 'undefined' || relative === 'null' || typeof relative !== 'string' || relative.trim() === '') {
+    if (
+      !relative ||
+      relative === "undefined" ||
+      relative === "null" ||
+      typeof relative !== "string" ||
+      relative.trim() === ""
+    ) {
+      return null;
+    }
+    // Skip pure anchor links (e.g. "#section") — they point to the same page
+    if (relative.trim().startsWith("#")) {
       return null;
     }
     try {
-      return new URL(relative, base).href;
+      const resolved = new URL(relative, base);
+      // Strip hash fragment — hash differences never mean a different page
+      resolved.hash = "";
+      return resolved.href;
     } catch {
       return null;
+    }
+  };
+
+  // ─── FIX 2: Normalize URLs for deduplication ────────────────────────────────
+  // Strips hash, trailing slash, and default filenames (index.html, index.htm)
+  // so /about, /about/, /about#team, and /index.html all map to the same key.
+  const normalizeUrl = (rawUrl) => {
+    try {
+      const u = new URL(rawUrl);
+      u.hash = ""; // always drop fragment
+      // Collapse default filenames to their directory equivalent
+      u.pathname = u.pathname.replace(/\/index\.html?$/, "/");
+      // Remove trailing slash unless it is the bare root path "/"
+      if (u.pathname.length > 1 && u.pathname.endsWith("/")) {
+        u.pathname = u.pathname.replace(/\/+$/, "");
+      }
+      return u.href;
+    } catch {
+      return rawUrl;
     }
   };
 
@@ -68,68 +67,6 @@ const scrapeWebsite = async (url) => {
     }
   };
 
-  // Detect platform from URL
-  const detectPlatform = (url) => {
-    try {
-      const urlObj = new URL(url);
-      const hostname = urlObj.hostname.replace(/^www\./, '');
-      
-      for (const [platformName, config] of Object.entries(PLATFORM_CONFIGS)) {
-        if (config.hostnames.some(h => h.replace(/^www\./, '') === hostname)) {
-          // Check if it matches profile pattern
-          if (config.profilePattern.test(urlObj.pathname)) {
-            return { platform: platformName, config, urlObj };
-          }
-        }
-      }
-      return null;
-    } catch {
-      return null;
-    }
-  };
-
-  // Check if URL should be crawled based on platform rules
-  const shouldCrawlLink = (baseUrl, testUrl, platformInfo) => {
-    // If not a platform site, use normal logic (crawl same domain)
-    if (!platformInfo) {
-      return isSameDomain(baseUrl, testUrl);
-    }
-
-    const { config, urlObj: baseUrlObj } = platformInfo;
-    
-    try {
-      const testUrlObj = new URL(testUrl);
-      
-      // Must be same domain
-      if (baseUrlObj.origin !== testUrlObj.origin) {
-        return false;
-      }
-
-      const testPath = testUrlObj.pathname;
-      
-      // Check blocked patterns first (more specific)
-      for (const blockedPattern of config.blockedPatterns) {
-        if (blockedPattern.test(testPath)) {
-          return false;
-        }
-      }
-      
-      // Check allowed patterns
-      for (const allowedPattern of config.allowedPatterns) {
-        if (allowedPattern.test(testPath)) {
-          return true;
-        }
-      }
-      
-      // Default: block if no pattern matches
-      return false;
-    } catch {
-      return false;
-    }
-  };
-
-  // Detect platform and extract context once
-  const platformInfo = detectPlatform(url);
 
   // Configure Puppeteer with stealth options for better anti-detection
   const launchOptions = {
@@ -155,11 +92,17 @@ const scrapeWebsite = async (url) => {
   // For Render.com: Configure cache directory
   const fs = require("fs");
   const path = require("path");
-  
+
   // Set cache directory - prioritize node_modules cache which persists with deployment
-  const nodeModulesCache = path.join(process.cwd(), "node_modules", ".cache", "puppeteer");
-  const renderCache = process.env.PUPPETEER_CACHE_DIR || "/opt/render/.cache/puppeteer";
-  
+  const nodeModulesCache = path.join(
+    process.cwd(),
+    "node_modules",
+    ".cache",
+    "puppeteer"
+  );
+  const renderCache =
+    process.env.PUPPETEER_CACHE_DIR || "/opt/render/.cache/puppeteer";
+
   // Try node_modules cache first (persists with deployment), then Render cache
   if (fs.existsSync(nodeModulesCache)) {
     process.env.PUPPETEER_CACHE_DIR = nodeModulesCache;
@@ -175,21 +118,21 @@ const scrapeWebsite = async (url) => {
   }
 
   let browser;
-  
+
   try {
     // First, try to get Puppeteer's bundled Chrome path and verify it exists
     const puppeteerExecutablePath = puppeteer.executablePath();
-    if (puppeteerExecutablePath && fs.existsSync(puppeteerExecutablePath)) {
+    if (
+      puppeteerExecutablePath &&
+      fs.existsSync(puppeteerExecutablePath)
+    ) {
       console.log(`Using Puppeteer Chrome at: ${puppeteerExecutablePath}`);
       launchOptions.executablePath = puppeteerExecutablePath;
       browser = await puppeteer.launch(launchOptions);
     } else {
       // If path doesn't exist, try to find Chrome in cache directories
-      const cacheDirs = [
-        nodeModulesCache,
-        renderCache,
-      ];
-      
+      const cacheDirs = [nodeModulesCache, renderCache];
+
       let foundPath = null;
       for (const cacheDir of cacheDirs) {
         if (fs.existsSync(cacheDir)) {
@@ -197,43 +140,59 @@ const scrapeWebsite = async (url) => {
           const chromeDir = path.join(cacheDir, "chrome");
           if (fs.existsSync(chromeDir)) {
             // Find the version directory (e.g., linux-138.0.7204.168)
-            const versionDirs = fs.readdirSync(chromeDir).filter(dir => 
-              dir.startsWith("linux-") || dir.startsWith("chrome-")
-            );
-            
+            const versionDirs = fs
+              .readdirSync(chromeDir)
+              .filter(
+                (dir) => dir.startsWith("linux-") || dir.startsWith("chrome-")
+              );
+
             for (const versionDir of versionDirs) {
-              const chromePath = path.join(chromeDir, versionDir, "chrome-linux64", "chrome");
+              const chromePath = path.join(
+                chromeDir,
+                versionDir,
+                "chrome-linux64",
+                "chrome"
+              );
               if (fs.existsSync(chromePath)) {
                 foundPath = chromePath;
                 console.log(`Found Chrome at: ${foundPath}`);
                 break;
               }
             }
-            
+
             if (foundPath) break;
           }
         }
       }
-      
+
       if (foundPath) {
         launchOptions.executablePath = foundPath;
         browser = await puppeteer.launch(launchOptions);
       } else {
         // Try launching without explicit path - let Puppeteer find it
-        console.warn("Chrome executable not found at any known path, trying default...");
+        console.warn(
+          "Chrome executable not found at any known path, trying default..."
+        );
         delete launchOptions.executablePath;
         browser = await puppeteer.launch(launchOptions);
       }
     }
   } catch (error) {
     // If launch fails, try without specifying executable path
-    if (error.message.includes("Could not find Chrome") || error.message.includes("Browser was not found")) {
-      console.warn("Chrome not found at configured path, trying without explicit path...");
+    if (
+      error.message.includes("Could not find Chrome") ||
+      error.message.includes("Browser was not found")
+    ) {
+      console.warn(
+        "Chrome not found at configured path, trying without explicit path..."
+      );
       delete launchOptions.executablePath;
       try {
         browser = await puppeteer.launch(launchOptions);
       } catch (retryError) {
-        throw new Error(`Chrome executable not found. Please ensure Chrome is installed. Run: npx puppeteer browsers install chrome. Error: ${retryError.message}`);
+        throw new Error(
+          `Chrome executable not found. Please ensure Chrome is installed. Run: npx puppeteer browsers install chrome. Error: ${retryError.message}`
+        );
       }
     } else {
       throw error;
@@ -241,41 +200,43 @@ const scrapeWebsite = async (url) => {
   }
 
   let page = await browser.newPage();
-  
+
   // Set realistic browser properties to avoid detection
   await page.setUserAgent(
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
   );
-  
+
   // Override webdriver property
   await page.evaluateOnNewDocument(() => {
-    Object.defineProperty(navigator, 'webdriver', {
+    Object.defineProperty(navigator, "webdriver", {
       get: () => false,
     });
   });
-  
+
   // Override plugins
   await page.evaluateOnNewDocument(() => {
-    Object.defineProperty(navigator, 'plugins', {
+    Object.defineProperty(navigator, "plugins", {
       get: () => [1, 2, 3, 4, 5],
     });
   });
-  
+
   // Override languages
   await page.evaluateOnNewDocument(() => {
-    Object.defineProperty(navigator, 'languages', {
-      get: () => ['en-US', 'en'],
+    Object.defineProperty(navigator, "languages", {
+      get: () => ["en-US", "en"],
     });
   });
 
   // Helper function to check if error is frame detachment or connection issue
   const isFrameDetachedError = (error) => {
     const errorMsg = error.message || error.toString();
-    return errorMsg.includes('detached') || 
-           (errorMsg.includes('Frame') && errorMsg.includes('detached')) ||
-           errorMsg.includes('Target closed') ||
-           errorMsg.includes('Connection closed') ||
-           errorMsg.includes('Protocol error');
+    return (
+      errorMsg.includes("detached") ||
+      (errorMsg.includes("Frame") && errorMsg.includes("detached")) ||
+      errorMsg.includes("Target closed") ||
+      errorMsg.includes("Connection closed") ||
+      errorMsg.includes("Protocol error")
+    );
   };
 
   // Helper function to check if browser is still connected
@@ -293,7 +254,7 @@ const scrapeWebsite = async (url) => {
     if (!isBrowserConnected()) {
       throw new Error("Browser connection lost");
     }
-    
+
     try {
       // Check if current page is still valid
       if (page && !page.isClosed()) {
@@ -307,7 +268,7 @@ const scrapeWebsite = async (url) => {
     } catch {
       // Page is invalid, create new one
     }
-    
+
     // Create a new page if current one is invalid
     if (page && !page.isClosed()) {
       try {
@@ -316,103 +277,113 @@ const scrapeWebsite = async (url) => {
         // Ignore errors when closing
       }
     }
-    
+
     // Check browser connection before creating new page
     if (!isBrowserConnected()) {
       throw new Error("Browser connection lost - cannot create new page");
     }
-    
+
     page = await browser.newPage();
-    
+
     // Set realistic browser properties
     await page.setUserAgent(
       "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
     );
-    
+
     // Override webdriver property
     await page.evaluateOnNewDocument(() => {
-      Object.defineProperty(navigator, 'webdriver', {
+      Object.defineProperty(navigator, "webdriver", {
         get: () => false,
       });
     });
-    
+
     return page;
   };
 
   const crawlAndScrape = async (currentUrl, depth = 0) => {
-    if (visited.has(currentUrl)) return;
-    visited.add(currentUrl);
-    crawlDepth.set(currentUrl, depth);
+    // ─── FIX 3: Normalize before dedup check ──────────────────────────────────
+    const normalizedUrl = normalizeUrl(currentUrl);
+    if (visited.has(normalizedUrl)) return;
+    visited.add(normalizedUrl);
+    crawlDepth.set(normalizedUrl, depth);
 
-    // Check depth limit for platform sites
-    if (platformInfo && platformInfo.config.maxDepth && depth > platformInfo.config.maxDepth) {
-      return;
-    }
 
     try {
       // Add delay between requests to avoid rate limiting
       if (visited.size > 1) {
-        await new Promise((resolve) => setTimeout(resolve, 1000 + Math.random() * 1000));
+        await new Promise((resolve) =>
+          setTimeout(resolve, 1000 + Math.random() * 1000)
+        );
       }
 
       let currentPage = page;
       let navigationSuccess = false;
-      
+
       // Try navigation with multiple strategies
       const navigationStrategies = [
         { waitUntil: "domcontentloaded", timeout: 60000 },
         { waitUntil: "load", timeout: 45000 },
         { waitUntil: "networkidle0", timeout: 30000 },
       ];
-      
-      for (let i = 0; i < navigationStrategies.length && !navigationSuccess; i++) {
+
+      for (
+        let i = 0;
+        i < navigationStrategies.length && !navigationSuccess;
+        i++
+      ) {
         try {
           // Check browser connection before each attempt
           if (!isBrowserConnected()) {
             throw new Error("Browser connection lost");
           }
-          
+
           currentPage = await getValidPage();
           const strategy = navigationStrategies[i];
-          
-          await currentPage.goto(currentUrl, {
+
+          await currentPage.goto(normalizedUrl, {
             waitUntil: strategy.waitUntil,
             timeout: strategy.timeout,
           });
-          
+
           navigationSuccess = true;
         } catch (navigationError) {
           // Check if it's a frame detachment or connection error
           if (isFrameDetachedError(navigationError)) {
             console.warn(
-              `Navigation error (attempt ${i + 1}/${navigationStrategies.length}) for ${currentUrl}: ${navigationError.message}`
+              `Navigation error (attempt ${i + 1}/${
+                navigationStrategies.length
+              }) for ${normalizedUrl}: ${navigationError.message}`
             );
-            
+
             // If browser connection is lost, we can't continue
             if (!isBrowserConnected()) {
               throw new Error("Browser connection lost - cannot continue");
             }
-            
+
             // Wait a bit before retrying
             await new Promise((resolve) => setTimeout(resolve, 2000));
-            
+
             // If this was the last strategy, throw error
             if (i === navigationStrategies.length - 1) {
-              throw new Error(`Navigation failed after ${navigationStrategies.length} attempts: ${navigationError.message}`);
+              throw new Error(
+                `Navigation failed after ${navigationStrategies.length} attempts: ${navigationError.message}`
+              );
             }
           } else {
             // For other errors, try next strategy
             if (i === navigationStrategies.length - 1) {
-              throw new Error(`Navigation failed: ${navigationError.message}`);
+              throw new Error(
+                `Navigation failed: ${navigationError.message}`
+              );
             }
           }
         }
       }
-      
+
       if (!navigationSuccess) {
         throw new Error("Navigation failed with all strategies");
       }
-      
+
       // Update page reference if we got a new one
       if (currentPage !== page) {
         page = currentPage;
@@ -423,47 +394,53 @@ const scrapeWebsite = async (url) => {
       try {
         // Wait for body to be present
         await page.waitForSelector("body", { timeout: 5000 });
-        
+
         // For Behance and similar SPAs, wait for main content containers
         const contentSelectors = [
-          'main',
+          "main",
           '[role="main"]',
-          '.content',
-          '#content',
-          'article',
-          '.project',
+          ".content",
+          "#content",
+          "article",
+          ".project",
         ];
-        
+
         // Try to wait for at least one content container
         await Promise.race([
-          ...contentSelectors.map(selector => 
-            page.waitForSelector(selector, { timeout: 5000 }).catch(() => null)
+          ...contentSelectors.map((selector) =>
+            page
+              .waitForSelector(selector, { timeout: 5000 })
+              .catch(() => null)
           ),
-          new Promise((resolve) => setTimeout(resolve, 3000))
+          new Promise((resolve) => setTimeout(resolve, 3000)),
         ]);
-        
+
         // Check if meaningful content exists
         const hasContent = await page.evaluate(() => {
           const bodyText = document.body?.innerText || "";
           return bodyText.trim().length > 100; // At least 100 chars of content
         });
-        
+
         if (!hasContent) {
           // Content not loaded yet, wait for it to appear with longer timeout for SPAs
           await Promise.race([
-            page.waitForFunction(
-              () => (document.body?.innerText || "").trim().length > 100,
-              { timeout: 10000 } // Longer timeout for SPAs
-            ).catch(() => null),
-            new Promise((resolve) => setTimeout(resolve, 5000)) // Wait up to 5 seconds
+            page
+              .waitForFunction(
+                () => (document.body?.innerText || "").trim().length > 100,
+                { timeout: 10000 } // Longer timeout for SPAs
+              )
+              .catch(() => null),
+            new Promise((resolve) => setTimeout(resolve, 5000)), // Wait up to 5 seconds
           ]);
         }
-        
+
         // Additional wait for dynamic content to load (especially for Behance)
         await new Promise((resolve) => setTimeout(resolve, 2000));
       } catch (e) {
         // If waiting fails, use a fallback delay
-        console.warn(`Content waiting failed for ${currentUrl}, using fallback delay: ${e.message}`);
+        console.warn(
+          `Content waiting failed for ${normalizedUrl}, using fallback delay: ${e.message}`
+        );
         await new Promise((resolve) => setTimeout(resolve, 2000));
       }
 
@@ -476,14 +453,14 @@ const scrapeWebsite = async (url) => {
 
         const texts = [];
         const seenTexts = new Set();
-        
+
         // Get all visible elements
         const allElements = document.querySelectorAll("body *");
-        
+
         allElements.forEach((el) => {
           const tag = el.tagName.toLowerCase();
           const text = getTextFromElement(el);
-          
+
           // Skip script, style, and other non-content elements
           if (
             ["script", "style", "noscript", "meta", "link"].includes(tag) ||
@@ -502,7 +479,7 @@ const scrapeWebsite = async (url) => {
                 return; // Skip if same as parent
               }
             }
-            
+
             texts.push({ tag, text });
             seenTexts.add(text);
           }
@@ -521,14 +498,20 @@ const scrapeWebsite = async (url) => {
       const links = [];
       $("a").each((_, el) => {
         const href = $(el).attr("href");
-        
+
         // Skip if href is missing, undefined, null, or invalid
-        if (!href || href === 'undefined' || href === 'null' || typeof href !== 'string' || href.trim() === '') {
+        if (
+          !href ||
+          href === "undefined" ||
+          href === "null" ||
+          typeof href !== "string" ||
+          href.trim() === ""
+        ) {
           return;
         }
-        
+
         let text = $(el).text().trim().replace(/\s+/g, " ");
-        
+
         // If no text, try to get from title, aria-label, or img alt
         if (!text) {
           text = $(el).attr("title") || $(el).attr("aria-label") || "";
@@ -537,16 +520,20 @@ const scrapeWebsite = async (url) => {
             text = img.attr("alt") || "";
           }
         }
-        
+
         const target = $(el).attr("target");
         const absUrl = getAbsoluteUrl(currentUrl, href);
-        
+
         // Only add if we have a valid absolute URL
-        if (absUrl && !absUrl.includes('undefined') && !absUrl.includes('null')) {
-          links.push({ 
-            href: absUrl, 
-            text: text || href, 
-            target: target || "none" 
+        if (
+          absUrl &&
+          !absUrl.includes("undefined") &&
+          !absUrl.includes("null")
+        ) {
+          links.push({
+            href: absUrl,
+            text: text || href,
+            target: target || "none",
           });
         }
       });
@@ -572,11 +559,11 @@ const scrapeWebsite = async (url) => {
 
       // Log scraping results for debugging
       console.log(
-        `📄 Scraped ${currentUrl}: ${texts.length} text elements, ${links.length} links, ${images.length} images`
+        `📄 Scraped ${normalizedUrl}: ${texts.length} text elements, ${links.length} links, ${images.length} images`
       );
 
       scrapedData.push({
-        page: currentUrl,
+        page: normalizedUrl,
         content: {
           visibleTexts: texts.slice(0, 200), // Limit text elements
           links: links.slice(0, 150), // Limit links to prevent token overflow
@@ -588,27 +575,31 @@ const scrapeWebsite = async (url) => {
 
       for (const { href } of links) {
         // Validate href before crawling - skip if invalid or contains undefined/null
-        if (href && 
-            typeof href === 'string' && 
-            !href.includes('undefined') && 
-            !href.includes('null') &&
-            !visited.has(href)) {
-          
-          // Use platform-aware link checking
-          if (!shouldCrawlLink(url, href, platformInfo)) {
-            continue; // Skip links that don't match platform rules
+        if (
+          href &&
+          typeof href === "string" &&
+          !href.includes("undefined") &&
+          !href.includes("null")
+        ) {
+          // ─── FIX 4: Normalize before visited check in the link loop ───────
+          const normalizedHref = normalizeUrl(href);
+          if (visited.has(normalizedHref)) continue;
+
+          // Only crawl links on the same domain
+          if (!isSameDomain(url, normalizedHref)) {
+            continue;
           }
-          
-          await crawlAndScrape(href, depth + 1);
+
+          await crawlAndScrape(normalizedHref, depth + 1);
         }
       }
     } catch (err) {
-      console.warn(`⚠️ Failed to crawl: ${currentUrl} — ${err.message}`);
+      console.warn(`⚠️ Failed to crawl: ${normalizedUrl} — ${err.message}`);
     }
   };
 
   try {
-    await crawlAndScrape(url.trim());
+    await crawlAndScrape(normalizeUrl(url.trim()));
   } finally {
     await browser.close();
   }

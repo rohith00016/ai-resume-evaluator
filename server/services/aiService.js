@@ -6,34 +6,80 @@ class AIService {
     this.model = this.genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
   }
 
-  async makeRequestWithRetry(prompt, maxRetries = 3) {
+  async makeRequestWithRetry(prompt, maxRetries = 4) {
+    // Fallback model order: try primary first, then lighter model on overload
+    const MODELS = ["gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-2.5-pro"];
+    let modelIndex = 0;
+
+    const getModel = () =>
+      this.genAI.getGenerativeModel({ model: MODELS[modelIndex] });
+
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        const result = await this.model.generateContent([prompt]);
+        const result = await getModel().generateContent([prompt]);
         return result.response.text();
       } catch (error) {
-        console.error(`AI API attempt ${attempt} failed:`, error.message);
+        console.error(
+          `AI API attempt ${attempt}/${maxRetries} failed (model: ${MODELS[modelIndex]}):`,
+          error.message
+        );
 
-        if (error.status === 429 && error.errorDetails) {
-          const retryDelayInfo = error.errorDetails.find(
+        const isLastAttempt = attempt === maxRetries;
+
+        // ── 503 Service Unavailable: model overloaded ──────────────────────
+        if (error.status === 503) {
+          // Try falling back to a lighter model first
+          if (modelIndex < MODELS.length - 1) {
+            modelIndex++;
+            console.log(
+              `Model overloaded, switching to fallback model: ${MODELS[modelIndex]}`
+            );
+            // Small pause before retrying with fallback model
+            await new Promise((resolve) => setTimeout(resolve, 2000));
+            continue;
+          }
+          // All models exhausted — wait and retry
+          if (isLastAttempt)
+            throw new Error(`Max retries exceeded: ${error.message}`);
+          const delay = 15000 * attempt;
+          console.log(
+            `All models overloaded, waiting ${delay}ms before retry...`
+          );
+          await new Promise((resolve) => setTimeout(resolve, delay));
+          continue;
+        }
+
+        // ── 429 Quota / Rate Limit ─────────────────────────────────────────
+        if (error.status === 429) {
+          if (isLastAttempt)
+            throw new Error(`Max retries exceeded: ${error.message}`);
+
+          // Parse retryDelay from error details (format: "53s" or "53.92s")
+          let delayMs = 30000 * attempt; // default backoff
+          const retryInfo = (error.errorDetails || []).find(
             (e) => e["@type"] === "type.googleapis.com/google.rpc.RetryInfo"
           );
-          const delayMs = retryDelayInfo
-            ? parseInt(retryDelayInfo.retryDelay) * 1000
-            : 30000 * attempt;
+          if (retryInfo?.retryDelay) {
+            // retryDelay arrives as "53s" or "53.927s" — strip the "s" suffix
+            const seconds = parseFloat(retryInfo.retryDelay);
+            if (!isNaN(seconds) && seconds > 0) {
+              delayMs = Math.ceil(seconds * 1000) + 2000; // add 2s buffer
+            }
+          }
 
           console.log(
             `Quota exceeded, retrying after ${delayMs}ms (Attempt ${attempt}/${maxRetries})`
           );
           await new Promise((resolve) => setTimeout(resolve, delayMs));
-        } else if (attempt === maxRetries) {
-          throw new Error(
-            `Max retries exceeded for AI API request: ${error.message}`
-          );
-        } else {
-          // For other errors, wait before retrying
-          await new Promise((resolve) => setTimeout(resolve, 5000 * attempt));
+          continue;
         }
+
+        // ── Other errors: exponential backoff ─────────────────────────────
+        if (isLastAttempt)
+          throw new Error(`Max retries exceeded: ${error.message}`);
+        const delay = 5000 * attempt;
+        console.log(`Retrying after ${delay}ms...`);
+        await new Promise((resolve) => setTimeout(resolve, delay));
       }
     }
     throw new Error("Max retries exceeded for AI API request");
@@ -306,18 +352,19 @@ Focus on helping the candidate improve their resume for better job market succes
               .slice(0, 200) // Limit text elements
               .map((item) => `${item.tag}: ${item.text}`)
               .join("\n");
-            
+
             // Limit links to prevent token overflow
             const links = page.content.links
               .slice(0, 100) // Limit to 100 links per page
               .map(
                 (link) =>
-                  `Link: ${link.text.substring(0, 100)} (${truncateUrl(link.href, 150)}) [Target: ${
-                    link.target || "none"
-                  }]`
+                  `Link: ${link.text.substring(0, 100)} (${truncateUrl(
+                    link.href,
+                    150
+                  )}) [Target: ${link.target || "none"}]`
               )
               .join("\n");
-            
+
             // Limit images significantly - only include first 10 images per page
             // and truncate long URLs to prevent token overflow
             const images = page.content.images
@@ -328,20 +375,19 @@ Focus on helping the candidate improve their resume for better job market succes
                 return `Image: ${truncatedSrc} (Alt: ${truncatedAlt})`;
               })
               .join("\n");
-            
+
             return `Page: ${page.page}\n\nVisible Texts:\n${texts}\n\nLinks:\n${links}\n\nImages:\n${images}`;
           })
           .join("\n\n---\n\n");
-        
+
         // Limit total scraped content length to prevent token overflow
-        // Gemini free tier has ~250k tokens/min limit, so we'll limit to ~100k characters
-        // (roughly 25k tokens assuming ~4 chars per token)
         const MAX_CONTENT_LENGTH = 100000;
         if (scrapedContent.length > MAX_CONTENT_LENGTH) {
           console.warn(
             `⚠️ Scraped content too long (${scrapedContent.length} chars), truncating to ${MAX_CONTENT_LENGTH} chars`
           );
-          scrapedContent = scrapedContent.substring(0, MAX_CONTENT_LENGTH) + 
+          scrapedContent =
+            scrapedContent.substring(0, MAX_CONTENT_LENGTH) +
             `\n\n... (content truncated - original length: ${scrapedContent.length} characters)`;
         }
       }
@@ -355,7 +401,9 @@ Focus on helping the candidate improve their resume for better job market succes
     // Log scraped content for debugging
     console.log(`\n📋 Scraped Content for ${portfolioUrl}:`);
     console.log(`Content Length: ${scrapedContent.length} characters`);
-    console.log(`Content Preview (first 500 chars): ${scrapedContent.substring(0, 500)}`);
+    console.log(
+      `Content Preview (first 500 chars): ${scrapedContent.substring(0, 500)}`
+    );
     if (scrapedContent.length > 500) {
       console.log(`... (truncated, total ${scrapedContent.length} chars)`);
     }
@@ -510,7 +558,7 @@ Areas for Improvement:
 - Note: Internal navigation links can open in same tab
 
 Missing Elements:
-- List anything critical that’s missing (e.g., no contact form, no project explanations)
+- List anything critical that's missing (e.g., no contact form, no project explanations)
 
 Recommendations:
 - Bullet points with clear next steps to improve this portfolio based on the evaluation criteria
