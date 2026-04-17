@@ -103,6 +103,81 @@ class AIService {
     return null;
   }
 
+  extractResumeLinks(resumeText) {
+    const text = resumeText || "";
+    const lines = text
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    const urlPattern = /(https?:\/\/[^\s)]+|www\.[^\s)]+)/gi;
+    const emailPattern = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi;
+
+    const urls = new Set();
+    const emails = new Set();
+    const keywordMentions = {
+      github: false,
+      linkedin: false,
+      portfolio: false,
+      certifications: false,
+      projectDemo: false,
+      projectRepository: false,
+    };
+
+    for (const line of lines) {
+      const matchedUrls = line.match(urlPattern) || [];
+      for (const rawUrl of matchedUrls) {
+        const normalized = rawUrl.startsWith("www.")
+          ? `https://${rawUrl}`
+          : rawUrl;
+        urls.add(normalized.replace(/[),.;]+$/, ""));
+      }
+
+      const matchedEmails = line.match(emailPattern) || [];
+      for (const email of matchedEmails) {
+        emails.add(email.toLowerCase());
+      }
+
+      const lower = line.toLowerCase();
+      if (lower.includes("github")) keywordMentions.github = true;
+      if (lower.includes("linkedin")) keywordMentions.linkedin = true;
+      if (
+        lower.includes("portfolio") ||
+        lower.includes("behance") ||
+        lower.includes("dribbble")
+      ) {
+        keywordMentions.portfolio = true;
+      }
+      if (lower.includes("certification") || lower.includes("certificate")) {
+        keywordMentions.certifications = true;
+      }
+      if (lower.includes("demo") || lower.includes("live")) {
+        keywordMentions.projectDemo = true;
+      }
+      if (lower.includes("repo") || lower.includes("repository")) {
+        keywordMentions.projectRepository = true;
+      }
+    }
+
+    const urlList = [...urls];
+    const socialLinks = {
+      github: urlList.filter((url) => /github\.com/i.test(url)),
+      linkedin: urlList.filter((url) => /linkedin\.com/i.test(url)),
+      portfolio: urlList.filter(
+        (url) =>
+          !/github\.com|linkedin\.com|mailto:/i.test(url) &&
+          /https?:\/\//i.test(url)
+      ),
+    };
+
+    return {
+      urls: urlList,
+      emails: [...emails],
+      socialLinks,
+      keywordMentions,
+    };
+  }
+
   getCourseEvaluationCriteria(course) {
     const baseInstructions = `
 You are an AI resume evaluator specializing in technical roles. Your task is to evaluate resumes against specific criteria and provide constructive feedback with scoring.
@@ -309,12 +384,47 @@ Evaluate this resume comprehensively for technical competency and presentation q
     }
   }
 
-  async evaluateResume(resumeText, course) {
+  async evaluateResume(resumeText, course, parseMeta = {}) {
     const evaluationCriteria = this.getCourseEvaluationCriteria(course);
+    const linkAnalysis = this.extractResumeLinks(resumeText);
+    const embeddedLinks = parseMeta.embeddedLinks || [];
+    const embeddedUrlList = embeddedLinks
+      .map((link) => link.url)
+      .filter(Boolean)
+      .slice(0, 20);
+    const linkAnalysisBlock = `RESUME LINK ANALYSIS (derived from extracted text):
+- Total URLs detected: ${linkAnalysis.urls.length}
+- GitHub URLs detected: ${linkAnalysis.socialLinks.github.length}
+- LinkedIn URLs detected: ${linkAnalysis.socialLinks.linkedin.length}
+- Other portfolio/site URLs detected: ${linkAnalysis.socialLinks.portfolio.length}
+- Emails detected: ${linkAnalysis.emails.length}
+- Embedded PDF links detected from annotations: ${embeddedLinks.length}
+- Resume page count: ${parseMeta.pageCount || "unknown"}
+- Keyword mentions (possible hyperlink labels from PDF text extraction):
+  * github mention: ${linkAnalysis.keywordMentions.github}
+  * linkedin mention: ${linkAnalysis.keywordMentions.linkedin}
+  * portfolio mention: ${linkAnalysis.keywordMentions.portfolio}
+  * certifications mention: ${linkAnalysis.keywordMentions.certifications}
+  * project demo mention: ${linkAnalysis.keywordMentions.projectDemo}
+  * project repository mention: ${linkAnalysis.keywordMentions.projectRepository}
+- URL samples from visible text:
+${(linkAnalysis.urls.slice(0, 15).join("\n") || "none detected")}
+- URL samples from embedded PDF annotations:
+${embeddedUrlList.join("\n") || "none detected"}`;
+
     const aiPrompt = `${evaluationCriteria}
 
 RESUME TO EVALUATE:
 ${resumeText}
+
+${linkAnalysisBlock}
+
+CRITICAL LINK EVALUATION RULES:
+- If embedded PDF links are detected, treat them as valid links even when plain text URL extraction is empty.
+- If RESUME LINK ANALYSIS shows a link type exists, DO NOT list that type as missing.
+- Only mark links as missing when text URLs, embedded PDF links, and keyword mentions all indicate absence.
+- PDFs can hide link targets in annotations; prioritize annotation results over assumptions.
+- Do not over-report missing links in "Missing Elements".
 
 Please evaluate this resume following the exact format specified above. Make sure to include:
 1. Overall Score out of 10

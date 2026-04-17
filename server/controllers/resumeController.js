@@ -1,6 +1,6 @@
-const pdfParse = require("pdf-parse");
 const aiService = require("../services/aiService");
 const emailService = require("../services/emailService");
+const pdfResumeParser = require("../services/pdfResumeParser");
 const Learner = require("../models/Learner");
 const logger = require("../utils/logger");
 
@@ -23,19 +23,34 @@ class ResumeController {
 
       // Resume Evaluation if file present (skip Cloudinary upload)
       if (req.file) {
-        const resumeData = await pdfParse(req.file.buffer);
+        const resumeData = await pdfResumeParser.parse(req.file.buffer);
         const resumeText = resumeData.text;
 
         if (!resumeText || resumeText.trim().length === 0) {
           throw new Error("Could not extract text from PDF.");
         }
 
+        logger.info("Resume PDF extraction summary", {
+          requestId: req.id,
+          pageCount: resumeData.pageCount || 0,
+          textLength: resumeText.length,
+          embeddedLinkCount: (resumeData.embeddedLinks || []).length,
+          embeddedLinkSamples: (resumeData.embeddedLinks || [])
+            .slice(0, 10)
+            .map((link) => link.url),
+          textPreview: resumeText.substring(0, 500),
+        });
+
         // Skipped upload to Cloudinary intentionally
         uploadResult = null;
 
         const { feedback, score } = await aiService.evaluateResume(
           resumeText,
-          course
+          course,
+          {
+            embeddedLinks: resumeData.embeddedLinks || [],
+            pageCount: resumeData.pageCount || 0,
+          }
         );
         resumeResult = { feedback, score };
       }
@@ -244,19 +259,34 @@ class ResumeController {
       const submittedBy = req.user.id;
 
       // Parse PDF and extract text
-      const resumeData = await pdfParse(req.file.buffer);
+      const resumeData = await pdfResumeParser.parse(req.file.buffer);
       const resumeText = resumeData.text;
 
       if (!resumeText || resumeText.trim().length === 0) {
         throw new Error("Could not extract text from PDF.");
       }
 
+      logger.info("Resume PDF extraction summary", {
+        requestId: req.id,
+        pageCount: resumeData.pageCount || 0,
+        textLength: resumeText.length,
+        embeddedLinkCount: (resumeData.embeddedLinks || []).length,
+        embeddedLinkSamples: (resumeData.embeddedLinks || [])
+          .slice(0, 10)
+          .map((link) => link.url),
+        textPreview: resumeText.substring(0, 500),
+      });
+
       // Skip Cloudinary upload intentionally
 
       // Generate AI feedback for resume
       const { feedback, score } = await aiService.evaluateResume(
         resumeText,
-        course
+        course,
+        {
+          embeddedLinks: resumeData.embeddedLinks || [],
+          pageCount: resumeData.pageCount || 0,
+        }
       );
 
       // Create new learner document
